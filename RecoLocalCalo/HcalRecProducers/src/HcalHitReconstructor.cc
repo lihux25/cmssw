@@ -44,7 +44,8 @@ HcalHitReconstructor::HcalHitReconstructor(edm::ParameterSet const& conf):
   mcOOTCorrectionCategory_("MC"),
   setPileupCorrection_(0),
   paramTS(0),
-  theTopology(0)
+  theTopology(0),
+  puCorrMethod_(conf.getUntrackedParameter<int>("puCorrMethod", 0))
 {
   // register for data access
   tok_hbhe_ = consumes<HBHEDigiCollection>(inputLabel_);
@@ -227,6 +228,8 @@ HcalHitReconstructor::HcalHitReconstructor(edm::ParameterSet const& conf):
       mcOOTCorrectionCategory_ = conf.getParameter<std::string>("mcOOTCorrectionCategory");
   if (dataOOTCorrectionName_.empty() && mcOOTCorrectionName_.empty())
       setPileupCorrection_ = 0;
+
+  reco_.setpuCorrMethod(puCorrMethod_);
 }
 
 HcalHitReconstructor::~HcalHitReconstructor() {

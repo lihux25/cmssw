@@ -7,6 +7,9 @@
 #include <algorithm>
 #include <cmath>
 
+#include <TF1.h>
+#include <TH1.h>
+
 //--- temporary for printouts
 // #include<iostream>
 
@@ -15,7 +18,7 @@ constexpr double MaximumFractionalError = 0.002; // 0.2% error allowed from this
 HcalSimpleRecAlgo::HcalSimpleRecAlgo(bool correctForTimeslew, bool correctForPulse, float phaseNS) : 
   correctForTimeslew_(correctForTimeslew),
   correctForPulse_(correctForPulse),
-  phaseNS_(phaseNS), runnum_(0), setLeakCorrection_(false)
+  phaseNS_(phaseNS), runnum_(0), setLeakCorrection_(false), puCorrMethod_(0)
 { 
   
   pulseCorr_ = std::auto_ptr<HcalPulseContainmentManager>(
@@ -25,7 +28,7 @@ HcalSimpleRecAlgo::HcalSimpleRecAlgo(bool correctForTimeslew, bool correctForPul
   
 
 HcalSimpleRecAlgo::HcalSimpleRecAlgo() : 
-  correctForTimeslew_(false), runnum_(0) { }
+  correctForTimeslew_(false), runnum_(0), puCorrMethod_(0) { }
 
 
 void HcalSimpleRecAlgo::beginRun(edm::EventSetup const & es)
@@ -281,6 +284,9 @@ namespace HcalSimpleRecAlgoImpl {
     }
   }
 
+  HcalPulseShapes::Shape hpdshape;
+  double fitFunction(double* x, double* pars);
+  int pulseShapeFit(const std::vector<double> &pulse, std::vector<double> &fitParsVec);
 
   template<class Digi, class RecHit>
   inline RecHit reco(const Digi& digi, const HcalCoder& coder,
@@ -290,7 +296,7 @@ namespace HcalSimpleRecAlgoImpl {
 		     const HcalTimeSlew::BiasSetting slewFlavor,
                      const int runnum, const bool useLeak,
                      const AbsOOTPileupCorrection* pileupCorrection,
-                     const BunchXParameter* bxInfo, const unsigned lenInfo)
+                     const BunchXParameter* bxInfo, const unsigned lenInfo, const int puCorrMethod)
   {
     double fc_ampl, ampl, uncorr_ampl, maxA;
     int nRead, maxI;
@@ -338,10 +344,145 @@ namespace HcalSimpleRecAlgoImpl {
       uncorr_ampl *= leakCorr(uncorr_ampl); 
     }
 
+    if( puCorrMethod == 2 ){
+       if( runnum >0 /*data*/ ){
+           hpdshape = HcalPulseShapes().getShape(105);
+       }else{
+          hpdshape = HcalPulseShapes().getShape(125);
+       }
+
+       CaloSamples cs;
+       coder.adc2fC(digi,cs);
+       std::vector<double> pulse;
+       for(int ip=0; ip<cs.size(); ip++){
+          pulse.push_back(cs[ip]);
+       }
+       std::vector<double> fitParsVec;
+       pulseShapeFit(pulse, fitParsVec);
+       time = fitParsVec[1]; ampl = fitParsVec[0]; uncorr_ampl = fitParsVec[0];
+    }
+
     RecHit rh(digi.id(),ampl,time);
     setRawEnergy(rh, static_cast<float>(uncorr_ampl));
     return rh;
   }
+
+  int pulseShapeFit(const std::vector<double> &pulse, std::vector<double> &fitParsVec){
+  
+    int pulseSize = (int)pulse.size();
+  
+    TF1 *fitfunc = new TF1("fitfunc",fitFunction,0,pulseSize,3); // Define fit function using FitFunc
+  
+    TH1F *h_charge=new TH1F("h_charge","h_charge", pulseSize, 0, pulseSize); //Create histogram for the contents of the 10TS
+  
+    h_charge->SetDirectory(0);
+  
+    for(int i=0;i<pulseSize;i++){
+       h_charge->SetBinContent(i+1,pulse[i]); //Fill each TS with its corresponding charge value + PED value (This needs to be done since the current version of our ntuples contains only PED subtracted charge)
+    }
+  
+    int fitStatus = h_charge->Fit("fitfunc","Q"); //Perform the fit
+  
+    double timeval=fitfunc->GetParameter(1);
+    double chi2val=fitfunc->GetChisquare();
+    double chargeval=fitfunc->GetParameter(0);
+    double pedval=fitfunc->GetParameter(2);
+  
+    fitParsVec.clear();
+  
+    fitParsVec.push_back(chargeval);
+    fitParsVec.push_back(timeval);
+    fitParsVec.push_back(pedval);
+    fitParsVec.push_back(chi2val);
+  
+    return fitStatus;
+  }
+  
+  double fitFunction(double* x, double* pars) {
+  
+    int nbin = 256;
+  
+    std::vector<float> ntmpbin(10,0.0);  // zeroing output binned pulse shape
+    std::vector<float> ntmpshift(nbin,0.0);  // zeroing output shifted pulse shape  
+  
+    int xx = (int)x[0];
+    double w1 = pars[0];
+    double w2 = pars[1];
+    double w3 = pars[2];
+  
+    TH1D *h1=new TH1D("h1","test",256,0,256); //create histogram from underlying shape
+  
+    h1->SetDirectory(0);
+  
+    for(int i=0;i<nbin;i++){
+      h1->SetBinContent(i+1,hpdshape(i));
+    }
+   
+    //calculate shift along x-axis (parameter w2)
+  
+    for(int i=0;i<nbin;i++){
+      if(i<w2+98.5)
+        {
+          ntmpshift[i]=0;
+        }
+      else
+        {
+          ntmpshift[i]=h1->Interpolate(i-98.5-w2);
+        }
+    }
+  
+    //calculate integrated function in bins of 25ns
+  
+    for(int i=0;i<nbin;i++)
+      {
+        if(i<250)
+          {
+            if(i<25)
+              {
+                ntmpbin[0]+=ntmpshift[i];
+              }
+            else if(i>=25&&i<50)
+              {
+                ntmpbin[1]+=ntmpshift[i];
+              }
+            else if(i>=50&&i<75)
+              {
+                ntmpbin[2]+=ntmpshift[i];
+              }
+            else if(i>=75&&i<100)
+              {
+                ntmpbin[3]+=ntmpshift[i];
+              }
+            else if(i>=100&&i<125)
+              {
+                ntmpbin[4]+=ntmpshift[i];
+              }
+            else if(i>=125&&i<150)
+              {
+                ntmpbin[5]+=ntmpshift[i];
+              }
+            else if(i>=150&&i<175)
+              {
+                ntmpbin[6]+=ntmpshift[i];
+              }
+            else if(i>=175&&i<200)
+              {
+                ntmpbin[7]+=ntmpshift[i];
+              }
+            else if(i>=200&&i<225)
+              {
+                ntmpbin[8]+=ntmpshift[i];
+              }
+            else if(i>=225&&i<250)
+              {
+                ntmpbin[9]+=ntmpshift[i];
+              }
+          }
+      }
+  
+    return w1*ntmpbin[xx]+w3; //returns output value of the function for a given TS (parameter w1 gives total energy of the pulse, parameter w3 sets the the fitted PED value)
+  }
+
 }
 
 
@@ -352,7 +493,7 @@ HBHERecHit HcalSimpleRecAlgo::reconstruct(const HBHEDataFrame& digi, int first, 
 							       HcalTimeSlew::Medium,
                                                                runnum_, setLeakCorrection_,
                                                                hbhePileupCorr_.get(),
-                                                               bunchCrossingInfo_, lenBunchCrossingInfo_);
+                                                               bunchCrossingInfo_, lenBunchCrossingInfo_, puCorrMethod_);
 }
 
 
@@ -362,7 +503,7 @@ HORecHit HcalSimpleRecAlgo::reconstruct(const HODataFrame& digi, int first, int 
 							   pulseCorr_->get(digi.id(), toadd, phaseNS_),
 							   HcalTimeSlew::Slow,
                                                            runnum_, false, hoPileupCorr_.get(),
-                                                           bunchCrossingInfo_, lenBunchCrossingInfo_);
+                                                           bunchCrossingInfo_, lenBunchCrossingInfo_, puCorrMethod_);
 }
 
 
@@ -372,7 +513,7 @@ HcalCalibRecHit HcalSimpleRecAlgo::reconstruct(const HcalCalibDataFrame& digi, i
 									 pulseCorr_->get(digi.id(), toadd, phaseNS_),
 									 HcalTimeSlew::Fast,
                                                                          runnum_, false, 0,
-                                                                         bunchCrossingInfo_, lenBunchCrossingInfo_);
+                                                                         bunchCrossingInfo_, lenBunchCrossingInfo_, puCorrMethod_);
 }
 
 
@@ -382,7 +523,7 @@ HBHERecHit HcalSimpleRecAlgo::reconstructHBHEUpgrade(const HcalUpgradeDataFrame&
                                                                                    pulseCorr_->get(digi.id(), toadd, phaseNS_),
                                                                                    HcalTimeSlew::Medium, 0, false,
                                                                                    hbhePileupCorr_.get(),
-                                                                                   bunchCrossingInfo_, lenBunchCrossingInfo_);
+                                                                                   bunchCrossingInfo_, lenBunchCrossingInfo_, puCorrMethod_);
   HcalTDCReco tdcReco;
   tdcReco.reconstruct(digi, result);
   return result;
@@ -713,3 +854,4 @@ float timeshift_ns_hf(float wpksamp) {
   yval = y1 + (y2-y1)*(flx-(float)index);
   return yval;
 }
+

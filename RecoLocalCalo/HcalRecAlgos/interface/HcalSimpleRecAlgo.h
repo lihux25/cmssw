@@ -73,6 +73,9 @@ public:
   HORecHit reconstruct(const HODataFrame& digi,  int first, int toadd, const HcalCoder& coder, const HcalCalibrations& calibs) const;
   HcalCalibRecHit reconstruct(const HcalCalibDataFrame& digi,  int first, int toadd, const HcalCoder& coder, const HcalCalibrations& calibs) const;
 
+//  int pulseShapeFit(const std::vector<double> &pulse, std::vector<double> &fitParsVec);
+//  double fitFunction(double* x, double* pars);
+  void setpuCorrMethod(int method){ puCorrMethod_ = method; }
 
 private:
   bool correctForTimeslew_;
@@ -87,6 +90,8 @@ private:
   boost::shared_ptr<AbsOOTPileupCorrection> hbhePileupCorr_;
   boost::shared_ptr<AbsOOTPileupCorrection> hfPileupCorr_;
   boost::shared_ptr<AbsOOTPileupCorrection> hoPileupCorr_;
+
+  int puCorrMethod_;
 };
 
 #endif
