@@ -346,7 +346,7 @@ namespace HcalSimpleRecAlgoImpl {
 
     if( puCorrMethod == 2 ){
        if( runnum >0 /*data*/ ){
-           hpdshape = HcalPulseShapes().getShape(105);
+          hpdshape = HcalPulseShapes().getShape(105);
        }else{
           hpdshape = HcalPulseShapes().getShape(125);
        }
@@ -394,7 +394,10 @@ namespace HcalSimpleRecAlgoImpl {
     fitParsVec.push_back(timeval);
     fitParsVec.push_back(pedval);
     fitParsVec.push_back(chi2val);
-  
+
+    if( h_charge ) delete h_charge;
+    if( fitfunc ) delete fitfunc;
+
     return fitStatus;
   }
   
@@ -430,6 +433,7 @@ namespace HcalSimpleRecAlgoImpl {
           ntmpshift[i]=h1->Interpolate(i-98.5-w2);
         }
     }
+    if( h1 ) delete h1;
   
     //calculate integrated function in bins of 25ns
   
