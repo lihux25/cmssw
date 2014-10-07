@@ -363,7 +363,7 @@ namespace HcalSimpleRecAlgoImpl {
        CaloSamples cs;
        coder.adc2fC(digi,cs);
        std::vector<double> charge, ped;
-       double TSTOT = 0;
+       double TSTOT = 0, TStrig = 0;
        for(int ip=0; ip<cs.size(); ip++){
           charge.push_back(cs[ip]);
 
@@ -372,10 +372,13 @@ namespace HcalSimpleRecAlgoImpl {
           ped.push_back(perped);
 
           TSTOT += cs[ip] - perped;
+          if( ip ==4 ) TStrig = cs[ip] - perped;
        }
        std::vector<double> fitParsVec;
-       pulseShapeFit(charge, ped, TSTOT, fitParsVec);
-       time = fitParsVec[1]; ampl = fitParsVec[0]; uncorr_ampl = fitParsVec[0];
+       if( TStrig >= 4 && TSTOT >= 10 ){
+          pulseShapeFit(charge, ped, TSTOT, fitParsVec);
+          time = fitParsVec[1]; ampl = fitParsVec[0]; uncorr_ampl = fitParsVec[0];
+       }
     }
 
     RecHit rh(digi.id(),ampl,time);
