@@ -293,7 +293,7 @@ namespace HcalSimpleRecAlgoImpl {
   void fcn1(Int_t &npar, Double_t *gin, Double_t &f, Double_t *pars, Int_t iflag);
   void fcn2(Int_t &npar, Double_t *gin, Double_t &f, Double_t *pars, Int_t iflag);
 // Note that: charge is without pedestal subtraction!
-  int pulseShapeFit(const std::vector<double> &charge, const std::vector<double> &ped, const double TSTOT, std::vector<double> &fitParsVec);
+  int pulseShapeFit(const std::vector<double> & energyVec, const std::vector<double> & pedenVec, const std::vector<double> &chargeVec, const std::vector<double> &pedVec, const double TSTOT, std::vector<double> &fitParsVec);
   double psFit_x[10], psFit_y[10], psFit_erry[10];
   int psFit_isData;
 
@@ -362,21 +362,31 @@ namespace HcalSimpleRecAlgoImpl {
 
        CaloSamples cs;
        coder.adc2fC(digi,cs);
-       std::vector<double> charge, ped;
-       double TSTOT = 0, TStrig = 0;
+       std::vector<double> chargeVec, pedVec;
+       std::vector<double> energyVec, pedenVec;
+       double TSTOT = 0, TStrig = 0; // in fC
+       double TSTOTen = 0; // in GeV
        for(int ip=0; ip<cs.size(); ip++){
-          charge.push_back(cs[ip]);
-
           const int capid = digi[ip].capid();
-          double perped = calibs.pedestal(capid);
-          ped.push_back(perped);
+          double charge = cs[ip];
+          double ped = calibs.pedestal(capid);
+          double gain = calibs.respcorrgain(capid);          
 
-          TSTOT += cs[ip] - perped;
-          if( ip ==4 ) TStrig = cs[ip] - perped;
+          double energy = charge*gain;
+          double peden = ped*gain;
+
+          chargeVec.push_back(charge); pedVec.push_back(ped);
+          energyVec.push_back(energy); pedenVec.push_back(peden);
+
+          TSTOT += charge - ped;
+          TSTOTen += energy - peden;
+          if( ip ==4 ){
+             TStrig = charge - ped;
+          }
        }
        std::vector<double> fitParsVec;
        if( TStrig >= 4 && TSTOT >= 10 ){
-          pulseShapeFit(charge, ped, TSTOT, fitParsVec);
+          pulseShapeFit(energyVec, pedenVec, chargeVec, pedVec, TSTOTen, fitParsVec);
           time = fitParsVec[1]; ampl = fitParsVec[0]; uncorr_ampl = fitParsVec[0];
        }
     }
@@ -386,7 +396,7 @@ namespace HcalSimpleRecAlgoImpl {
     return rh;
   }
 
-  int pulseShapeFit(const std::vector<double> &charge, const std::vector<double> &ped, const double TSTOT, std::vector<double> &fitParsVec){
+  int pulseShapeFit(const std::vector<double> & energyVec, const std::vector<double> & pedenVec, const std::vector<double> &chargeVec, const std::vector<double> &pedVec, const double TSTOT, std::vector<double> &fitParsVec){
   
      int n_max=0;
      int n_above_thr=0;
@@ -398,9 +408,9 @@ namespace HcalSimpleRecAlgoImpl {
      int i_tsmax=0;
  
      for(int i=0;i<10;i++){
-        if(charge[i]>TSMAX){
-           TSMAX=charge[i];
-           TSMAX_NOPED=charge[i]-ped[i];
+        if(energyVec[i]>TSMAX){
+           TSMAX=energyVec[i];
+           TSMAX_NOPED=energyVec[i]-pedenVec[i];
            i_tsmax = i;
         }
      }
@@ -414,7 +424,7 @@ namespace HcalSimpleRecAlgoImpl {
      double error = 1.;
      for(int i=0;i<10;i++){
         psFit_x[i]=i;
-        psFit_y[i]=charge[i];
+        psFit_y[i]=energyVec[i];
         psFit_erry[i]=error;
      }
     
@@ -422,7 +432,7 @@ namespace HcalSimpleRecAlgoImpl {
      gMinuit->SetPrintLevel(-1);
   
      for(int i=0;i!=10;++i){
-        if((charge[i])>6){
+        if((chargeVec[i])>6){
            n_above_thr++;
            if(first_above_thr_index==-1){
               first_above_thr_index=i;
@@ -430,8 +440,8 @@ namespace HcalSimpleRecAlgoImpl {
         }
      }
      for(int i=1;i!=9;++i){
-        if(charge[i-1]>6 && charge[i]>6 && charge[i+1]>6){
-           if(charge[i-1]<charge[i] && charge[i+1]<charge[i]){
+        if(chargeVec[i-1]>6 && chargeVec[i]>6 && chargeVec[i+1]>6){
+           if(chargeVec[i-1]<chargeVec[i] && chargeVec[i+1]<chargeVec[i]){
               max_index[n_max]=i;
               n_max++;
            }
