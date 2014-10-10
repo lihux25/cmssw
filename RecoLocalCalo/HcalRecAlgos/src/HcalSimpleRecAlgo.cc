@@ -293,7 +293,7 @@ namespace HcalSimpleRecAlgoImpl {
   void fcn1(Int_t &npar, Double_t *gin, Double_t &f, Double_t *pars, Int_t iflag);
   void fcn2(Int_t &npar, Double_t *gin, Double_t &f, Double_t *pars, Int_t iflag);
 // Note that: charge is without pedestal subtraction!
-  int pulseShapeFit(const std::vector<double> & energyVec, const std::vector<double> & pedenVec, const std::vector<double> &chargeVec, const std::vector<double> &pedVec, const double TSTOT, std::vector<double> &fitParsVec);
+  int pulseShapeFit(const std::vector<double> & energyVec, const std::vector<double> & pedenVec, const std::vector<double> &chargeVec, const std::vector<double> &pedVec, const double TSTOTen, std::vector<double> &fitParsVec);
   double psFit_x[10], psFit_y[10], psFit_erry[10];
   int psFit_isData;
 
@@ -396,7 +396,7 @@ namespace HcalSimpleRecAlgoImpl {
     return rh;
   }
 
-  int pulseShapeFit(const std::vector<double> & energyVec, const std::vector<double> & pedenVec, const std::vector<double> &chargeVec, const std::vector<double> &pedVec, const double TSTOT, std::vector<double> &fitParsVec){
+  int pulseShapeFit(const std::vector<double> & energyVec, const std::vector<double> & pedenVec, const std::vector<double> &chargeVec, const std::vector<double> &pedVec, const double TSTOTen, std::vector<double> &fitParsVec){
   
      int n_max=0;
      int n_above_thr=0;
@@ -463,7 +463,7 @@ namespace HcalSimpleRecAlgoImpl {
         double vstart[3] = {TIMES[i_tsmax-1],TSMAX_NOPED,0};
         double step[3] = {0.1,0.1,0.1};
         gMinuit->mnparm(0, "time", vstart[0], step[0], -100,75,ierflg);
-        gMinuit->mnparm(1, "energy", vstart[1], step[1], 0,TSTOT,ierflg);
+        gMinuit->mnparm(1, "energy", vstart[1], step[1], 0,TSTOTen,ierflg);
         gMinuit->mnparm(2, "ped", vstart[2], step[2], 0,0,ierflg);
  
         double chi2=9999.;
@@ -508,8 +508,8 @@ namespace HcalSimpleRecAlgoImpl {
            Double_t step[5] = {0.1,0.1,0.1,0.1,0.1};
            gMinuit->mnparm(0, "time1", vstart[0], step[0], -100,75,ierflg);
            gMinuit->mnparm(1, "time2", vstart[1], step[1], -100,75,ierflg);
-           gMinuit->mnparm(2, "energy1", vstart[2], step[2], 0,TSTOT,ierflg);
-           gMinuit->mnparm(3, "energy2", vstart[3], step[3], 0,TSTOT,ierflg);
+           gMinuit->mnparm(2, "energy1", vstart[2], step[2], 0,TSTOTen,ierflg);
+           gMinuit->mnparm(3, "energy2", vstart[3], step[3], 0,TSTOTen,ierflg);
            gMinuit->mnparm(4, "ped", vstart[4], step[4], 0,0,ierflg);
  
            double chi2=9999.;
@@ -546,8 +546,8 @@ namespace HcalSimpleRecAlgoImpl {
            double step[5] = {0.1,0.1,0.1,0.1,0.1};
            gMinuit->mnparm(0, "time1", vstart[0], step[0], -100,75,ierflg);
            gMinuit->mnparm(1, "time2", vstart[1], step[1], -100,75,ierflg);
-           gMinuit->mnparm(2, "energy1", vstart[2], step[2], 0,TSTOT,ierflg);
-           gMinuit->mnparm(3, "energy2", vstart[3], step[3], 0,TSTOT,ierflg);
+           gMinuit->mnparm(2, "energy1", vstart[2], step[2], 0,TSTOTen,ierflg);
+           gMinuit->mnparm(3, "energy2", vstart[3], step[3], 0,TSTOTen,ierflg);
            gMinuit->mnparm(4, "ped", vstart[4], step[4], 0,0,ierflg);
  
            double chi2=9999.;
@@ -615,23 +615,24 @@ namespace HcalSimpleRecAlgoImpl {
      if(n_above_thr<=5) {
         timevalfit=timeval1fit;
         chargevalfit=chargeval1fit;
-     } else { 
-       // if timeval1fit and timeval2fit are differnt, choose the one which is closer to zero
-        if(abs(timeval1fit)<abs(timeval2fit)) {
-           timevalfit=timeval1fit;
-           chargevalfit=chargeval1fit;
-        } else if(abs(timeval2fit)<abs(timeval1fit)) {
-           timevalfit=timeval2fit;
-           chargevalfit=chargeval2fit;
-        }
-        // if the two times are the same, then for charge we just sum the two
-        else if(timeval1fit==timeval2fit) {
-           timevalfit=(timeval1fit+timeval2fit)/2;
-           chargevalfit=chargeval1fit+chargeval2fit;
-        } else {
-           timevalfit=-999.;
-           chargevalfit=-999.;
-        }
+     } 
+     else { 
+       if(fabs(timeval1fit)<fabs(timeval2fit)) {// if timeval1fit and timeval2fit are differnt, choose the one which is closer to zero
+	 timevalfit=timeval1fit;
+	 chargevalfit=chargeval1fit;
+       } 
+       else if(fabs(timeval2fit)<fabs(timeval1fit)) {// if timeval1fit and timeval2fit are differnt, choose the one which is closer to zero
+	 timevalfit=timeval2fit;
+	 chargevalfit=chargeval2fit;
+       }
+       else if(timeval1fit==timeval2fit) { // if the two times are the same, then for charge we just sum the two  
+	 timevalfit=(timeval1fit+timeval2fit)/2;
+	 chargevalfit=chargeval1fit+chargeval2fit;
+       } 
+       else {
+	 timevalfit=-999.;
+	 chargevalfit=-999.;
+       }
      }
 
      if( gMinuit ) delete gMinuit;
