@@ -305,7 +305,12 @@ void HcalHitReconstructor::produce(edm::Event& e, const edm::EventSetup& eventSe
 
   // HACK related to HB- corrections
   const bool isData = e.isRealData();
-  if (isData) reco_.setForData(e.run()); else reco_.setForData(0);
+  if (isData) { 
+    reco_.setForData(e.run());    
+    reco_.setPulseShapeTemplate(theHcalPulseShapes_.getShape(105));
+  } else {
+    reco_.setPulseShapeTemplate(theHcalPulseShapes_.getShape(125));
+  }
   if (useLeakCorrection_) reco_.setLeakCorrection();
 
   edm::ESHandle<HcalChannelQuality> p;

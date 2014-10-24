@@ -51,6 +51,8 @@ class HcalTopology;
     private:      
       typedef void (HcalSimpleRecAlgo::*SetCorrectionFcn)(boost::shared_ptr<AbsOOTPileupCorrection>);
 
+      HcalPulseShapes theHcalPulseShapes_;
+
       HcalSimpleRecAlgo reco_;
       HcalADCSaturationFlag* saturationFlagSetter_;
       HFTimingTrustFlag* HFTimingTrustFlagSetter_;
