@@ -20,8 +20,6 @@
 #include "CalibCalorimetry/HcalAlgos/interface/HcalPulseContainmentManager.h"
 #include "CondFormats/HcalObjects/interface/AbsOOTPileupCorrection.h"
 
-#include "RecoLocalCalo/HcalRecAlgos/interface/PulseShapeFitOOTPileupCorrection.h"
-
 /** \class HcalSimpleRecAlgo
 
    This class reconstructs RecHits from Digis for HBHE, HF, and HO by addition
@@ -33,6 +31,42 @@
     
    \author J. Mans - Minnesota
 */
+#include <TH1F.h>
+#include "Minuit2/FCNBase.h"
+
+namespace HcalSimpleRecAlgoImpl {
+  class SinglePulseShapeFunctor {
+  public:
+    SinglePulseShapeFunctor(const HcalPulseShapes::Shape& pulse);
+    ~SinglePulseShapeFunctor();
+    double operator()(const std::vector<double>& pars) const;    
+  private:
+    std::array<float,256> pulse_hist;
+  };
+  
+  class DoublePulseShapeFunctor {
+  public:
+    DoublePulseShapeFunctor(const HcalPulseShapes::Shape& pulse);  
+    ~DoublePulseShapeFunctor();
+    double operator()(const std::vector<double> & pars) const;
+    
+  private:
+    std::array<float,256> pulse_hist;
+  };
+
+  // because minuit owns the function you pass it?
+  template<typename PSF>
+    class PulseShapeFCN : public ROOT::Minuit2::FCNBase {
+  public:
+    PulseShapeFCN(const PSF* t) { psf_ = t; }
+    double operator()(const std::vector<double>& pars) const {
+      return (*psf_)(pars);
+    }
+    double Up() const { return 1.; }
+  private:
+    const PSF* psf_;
+  };
+}
 
 class HcalSimpleRecAlgo {
 public:
@@ -76,8 +110,14 @@ public:
   HORecHit reconstruct(const HODataFrame& digi,  int first, int toadd, const HcalCoder& coder, const HcalCalibrations& calibs) const;
   HcalCalibRecHit reconstruct(const HcalCalibDataFrame& digi,  int first, int toadd, const HcalCoder& coder, const HcalCalibrations& calibs) const;
 
+//  int pulseShapeFit(const std::vector<double> &pulse, std::vector<double> &fitParsVec);
+//  double fitFunction(double* x, double* pars);
   void setpuCorrMethod(int method){ puCorrMethod_ = method; }
 
+  void setPulseShapeTemplate(const HcalPulseShapes::Shape& ps) {
+    spsf_.reset(new HcalSimpleRecAlgoImpl::SinglePulseShapeFunctor(ps));
+    dpsf_.reset(new HcalSimpleRecAlgoImpl::DoublePulseShapeFunctor(ps));
+  }
 
 private:
   bool correctForTimeslew_;
@@ -92,12 +132,11 @@ private:
   boost::shared_ptr<AbsOOTPileupCorrection> hbhePileupCorr_;
   boost::shared_ptr<AbsOOTPileupCorrection> hfPileupCorr_;
   boost::shared_ptr<AbsOOTPileupCorrection> hoPileupCorr_;
-
-  HcalPulseShapes theHcalPulseShapes_;
+  bool pulseShapeInitialized_;
+  std::auto_ptr<HcalSimpleRecAlgoImpl::SinglePulseShapeFunctor> spsf_;
+  std::auto_ptr<HcalSimpleRecAlgoImpl::DoublePulseShapeFunctor> dpsf_;
 
   int puCorrMethod_;
-
-  std::auto_ptr<PulseShapeFitOOTPileupCorrection> psFitOOTpuCorr_;
 };
 
 #endif

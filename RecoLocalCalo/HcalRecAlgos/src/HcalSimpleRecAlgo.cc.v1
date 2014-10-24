@@ -355,7 +355,7 @@ namespace HcalSimpleRecAlgoImpl {
        }
        
        psFitOOTpuCorr->apply(cs, capidvec, calibs, correctedOutput);
-       if( correctedOutput.back() == 0 && correctedOutput.size() >1 ){
+       if( correctedOutput.back() == 0 ){
           time = correctedOutput[1]; ampl = correctedOutput[0]; uncorr_ampl = correctedOutput[0];
        }
     }
