@@ -332,17 +332,6 @@ namespace HcalSimpleRecAlgoImpl {
       time=time-calibs.timecorr(); // time calibration
     }
 
-    // Temporary hack to apply energy-dependent corrections to some HB- cells
-    if (runnum > 0) {
-      const HcalDetId& cell = digi.id();
-      if (cell.subdet() == HcalBarrel) {
-        const int ieta = cell.ieta();
-        const int iphi = cell.iphi();
-        ampl *= eCorr(ieta, iphi, ampl, runnum);
-        uncorr_ampl *= eCorr(ieta, iphi, uncorr_ampl, runnum);
-      }
-    }
-
     if( puCorrMethod == 2 ){
        std::vector<double> correctedOutput;
 
@@ -355,9 +344,26 @@ namespace HcalSimpleRecAlgoImpl {
        }
        
        psFitOOTpuCorr->apply(cs, capidvec, calibs, correctedOutput);
-       if( correctedOutput.back() == 0 && correctedOutput.size() >1 ){
-          time = correctedOutput[1]; ampl = correctedOutput[0]; uncorr_ampl = correctedOutput[0];
+       unsigned int corrOutputSize = correctedOutput.size();
+// Checking fit status... if bad fit, keep original time and amplitude
+       if( corrOutputSize > 1 ){ // at least containing FitterFuncs::cntNANinfit
+          double cntNANinfit = correctedOutput[corrOutputSize-1];
+          double ifault = correctedOutput[corrOutputSize-2];
+          if( cntNANinfit == 0 && ifault == 0 ){
+             time = correctedOutput[1]; ampl = correctedOutput[0];
+          }
        }
+    }
+
+    // Temporary hack to apply energy-dependent corrections to some HB- cells
+    if (runnum > 0) {
+      const HcalDetId& cell = digi.id();
+      if (cell.subdet() == HcalBarrel) {
+        const int ieta = cell.ieta();
+        const int iphi = cell.iphi();
+        ampl *= eCorr(ieta, iphi, ampl, runnum);
+        uncorr_ampl *= eCorr(ieta, iphi, uncorr_ampl, runnum);
+      }
     }
 
     // Correction for a leak to pre-sample

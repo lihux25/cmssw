@@ -47,6 +47,8 @@ namespace FitterFuncs{
          const PSF* psf_;
    };
    
+   double singlePulseShapeFunc( double x[3] );
+   double doublePulseShapeFunc( double x[5] );
 }
 
 class PulseShapeFitOOTPileupCorrection
@@ -61,7 +63,7 @@ public:
     //
     // Some of the input arguments may be ignored by derived classes.
     //
-    void apply(const CaloSamples & cs, const std::vector<int> & capidvec, /*const HcalCoder & coder,*/
+    void apply(const CaloSamples & cs, const std::vector<int> & capidvec,
                        const HcalCalibrations & calibs, std::vector<double> & correctedOutput) const;
 
     // Comparison operators. Note that they are not virtual and should
@@ -72,10 +74,7 @@ public:
     inline bool operator!=(const PulseShapeFitOOTPileupCorrection& r) const
         {return !(*this == r);}
 
-    void setPulseShapeTemplate(const HcalPulseShapes::Shape& ps) {
-       spsf_.reset(new FitterFuncs::SinglePulseShapeFunctor(ps));
-       dpsf_.reset(new FitterFuncs::DoublePulseShapeFunctor(ps));
-    }
+    void setPulseShapeTemplate(const HcalPulseShapes::Shape& ps);
 
 protected:
     // Method needed to compare objects for equality.
@@ -90,6 +89,7 @@ private:
     bool useDataPulseShape_;
 
     int pulseShapeFit(const std::vector<double> & energyVec, const std::vector<double> & pedenVec, const std::vector<double> &chargeVec, const std::vector<double> &pedVec, const double TSTOTen, std::vector<double> &fitParsVec, const std::auto_ptr<FitterFuncs::SinglePulseShapeFunctor>& spsf, const std::auto_ptr<FitterFuncs::DoublePulseShapeFunctor>& dpsf) const;
+
 };
 
 #endif // PulseShapeFitOOTPileupCorrection_h

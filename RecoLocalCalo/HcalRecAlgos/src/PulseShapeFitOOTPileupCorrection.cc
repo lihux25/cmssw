@@ -1,5 +1,6 @@
 #include <climits>
 #include "RecoLocalCalo/HcalRecAlgos/interface/PulseShapeFitOOTPileupCorrection.h"
+#include "RecoLocalCalo/HcalRecAlgos/src/Asa047.h"
 
 namespace FitterFuncs{
 
@@ -123,13 +124,35 @@ namespace FitterFuncs{
       return chisq;
    }
 
+   std::auto_ptr<SinglePulseShapeFunctor> spsfPtr_;
+   std::auto_ptr<DoublePulseShapeFunctor> dpsfPtr_;
+
+   double singlePulseShapeFunc( double x[3] ) {
+      std::vector<double> pars;
+      for(int i=0; i<3; i++) pars.push_back(x[i]);
+      return (*spsfPtr_)(pars);
+   }
+
+   double doublePulseShapeFunc( double x[5] ) {
+      std::vector<double> pars;
+      for(int i=0; i<5; i++) pars.push_back(x[i]);
+      return (*dpsfPtr_)(pars);
+   }
+
 }
 
 PulseShapeFitOOTPileupCorrection::PulseShapeFitOOTPileupCorrection()
 {
 }
 
-void PulseShapeFitOOTPileupCorrection::apply(const CaloSamples & cs, const std::vector<int> & capidvec, /*const HcalCoder & coder,*/
+void PulseShapeFitOOTPileupCorrection::setPulseShapeTemplate(const HcalPulseShapes::Shape& ps) {
+   spsf_.reset(new FitterFuncs::SinglePulseShapeFunctor(ps));
+   dpsf_.reset(new FitterFuncs::DoublePulseShapeFunctor(ps));
+   FitterFuncs::spsfPtr_.reset(new FitterFuncs::SinglePulseShapeFunctor(ps));
+   FitterFuncs::dpsfPtr_.reset(new FitterFuncs::DoublePulseShapeFunctor(ps));
+}
+
+void PulseShapeFitOOTPileupCorrection::apply(const CaloSamples & cs, const std::vector<int> & capidvec,
                        const HcalCalibrations & calibs, std::vector<double> & correctedOutput) const
 {
    FitterFuncs::cntNANinfit = 0;
@@ -240,119 +263,46 @@ int PulseShapeFitOOTPileupCorrection::pulseShapeFit(const std::vector<double> & 
         //n_max=1; // there's still one max if you didn't find any...
       }
 
-      if(n_above_thr<=5){
-         FitterFuncs::PulseShapeFCN<FitterFuncs::SinglePulseShapeFunctor>* temp = new FitterFuncs::PulseShapeFCN<FitterFuncs::SinglePulseShapeFunctor>(spsf.get());
-         gMinuit->SetMinuitFCN(temp); // bai bai!
+      double xmin_sp[3] = {}, xmin_dp[5] = {};
+      double reqmin = 1.0E-12;
 
+      int icount =0;
+      int ifault =0;
+      int kcount = 2500;
+      int konvge = 10;
+      int numres = 0;
+      double ynewlo = 0;
+
+      if(n_above_thr<=5){
          // Set starting values and step sizes for parameters
          double vstart[3] = {TIMES[i_tsmax-1],TSMAX_NOPED,0};
 
          double step[3] = {0.1,0.1,0.1};
-         gMinuit->Clear();
-         gMinuit->SetParameter(0, "time", vstart[0], step[0], -100,75);
-         gMinuit->SetParameter(1, "energy", vstart[1], step[1], 0,TSTOTen);
-         gMinuit->SetParameter(2, "ped", vstart[2], step[2], 0,TSTOTen);
-         double chi2=9999.;
-         for(int tries=0; tries<=3;tries++){
-            // Now ready for minimization step
-            gMinuit->CreateMinimizer( TFitterMinuit::kMigrad );
-            gMinuit->Minimize();
 
-            double chi2valfit,edm,errdef;
-            int nvpar,nparx;
-            gMinuit->GetStats(chi2valfit,edm,errdef,nvpar,nparx);
+         ynewlo = FitterFuncs::singlePulseShapeFunc(vstart);
 
-            if(chi2>chi2valfit+0.01) {
-               chi2=chi2valfit;
-               if(tries==0){
-                  gMinuit->CreateMinimizer( TFitterMinuit::kScan );
-                  gMinuit->Minimize();
-               } else if(tries==1){
-                  gMinuit->SetStrategy(1);
-               } else if(tries==2){
-                  gMinuit->SetStrategy(2);
-               }
-            } else {
-               break;
-            }
-         }
+         nelmin(FitterFuncs::singlePulseShapeFunc, 3, vstart, xmin_sp, &ynewlo, reqmin, step, konvge, kcount, &icount, &numres, &ifault);
+
       } else {
-         FitterFuncs::PulseShapeFCN<FitterFuncs::DoublePulseShapeFunctor>* temp = new FitterFuncs::PulseShapeFCN<FitterFuncs::DoublePulseShapeFunctor>(dpsf.get());
-         gMinuit->SetMinuitFCN(temp); // bai bai!
-
          if(n_max==1){
             // Set starting values and step sizes for parameters
             double vstart[5] = {TIMES[i_tsmax-1],TIMES[first_above_thr_index-1],TSMAX_NOPED,0,0};
 
             Double_t step[5] = {0.1,0.1,0.1,0.1,0.1};
-            gMinuit->Clear();
-            gMinuit->SetParameter(0, "time1", vstart[0], step[0], -100,75);
-            gMinuit->SetParameter(1, "time2", vstart[1], step[1], -100,75);
-            gMinuit->SetParameter(2, "energy1", vstart[2], step[2], 0,TSTOTen);
-            gMinuit->SetParameter(3, "energy2", vstart[3], step[3], 0,TSTOTen);
-            gMinuit->SetParameter(4, "ped", vstart[4], step[4], 0,TSTOTen);
 
-            double chi2=9999.;
-            for(int tries=0; tries<=3;tries++) {
-            // Now ready for minimization step
-               gMinuit->CreateMinimizer( TFitterMinuit::kMigrad );
-               gMinuit->Minimize();
+            ynewlo = FitterFuncs::doublePulseShapeFunc(vstart);
 
-               double chi2valfit,edm,errdef;
-               int nvpar,nparx;
-               gMinuit->GetStats(chi2valfit,edm,errdef,nvpar,nparx);
+            nelmin(FitterFuncs::doublePulseShapeFunc, 5, vstart, xmin_dp, &ynewlo, reqmin, step, konvge, kcount, &icount, &numres, &ifault);
 
-               if(chi2>chi2valfit+0.01) {
-                  chi2=chi2valfit;
-                  if(tries==0){
-                     gMinuit->CreateMinimizer( TFitterMinuit::kScan );
-                     gMinuit->Minimize();
-                } else if(tries==1) {
-                   gMinuit->SetStrategy(1);
-                } else if(tries==2) {
-                   gMinuit->SetStrategy(2);
-                }
-              } else {
-                 break;
-              }
-           }
         } else if(n_max>=2) {
            // Set starting values and step sizes for parameters
            double vstart[5] = {TIMES[max_index[0]-1],TIMES[max_index[1]-1],TSMAX_NOPED,0,0};
 
            double step[5] = {0.1,0.1,0.1,0.1,0.1};
-           gMinuit->Clear();
-           gMinuit->SetParameter(0, "time1", vstart[0], step[0], -100,75);
-           gMinuit->SetParameter(1, "time2", vstart[1], step[1], -100,75);
-           gMinuit->SetParameter(2, "energy1", vstart[2], step[2], 0,TSTOTen);
-           gMinuit->SetParameter(3, "energy2", vstart[3], step[3], 0,TSTOTen);
-           gMinuit->SetParameter(4, "ped", vstart[4], step[4], 0,TSTOTen);
 
-           double chi2=9999.;
-           for(int tries=0; tries<=3;tries++) {
-           // Now ready for minimization step
-              gMinuit->CreateMinimizer( TFitterMinuit::kMigrad );
-              gMinuit->Minimize();
+           ynewlo = FitterFuncs::doublePulseShapeFunc(vstart);
 
-              double chi2valfit,edm,errdef;
-              int nvpar,nparx;
-
-              gMinuit->GetStats(chi2valfit,edm,errdef,nvpar,nparx);
-
-              if(chi2>chi2valfit+0.01) {
-                 chi2=chi2valfit;
-                 if(tries==0){
-                    gMinuit->CreateMinimizer( TFitterMinuit::kScan );
-                    gMinuit->Minimize();
-                 } else if(tries==1) {
-                    gMinuit->SetStrategy(1);
-                 } else if(tries==2) {
-                    gMinuit->SetStrategy(2);
-                 }
-              } else {
-                 break;
-              }
-           }
+           nelmin(FitterFuncs::doublePulseShapeFunc, 5, vstart, xmin_dp, &ynewlo, reqmin, step, konvge, kcount, &icount, &numres, &ifault);
         }
      }
 
@@ -363,20 +313,18 @@ int PulseShapeFitOOTPileupCorrection::pulseShapeFit(const std::vector<double> & 
      double pedvalfit=-999;
 
      if(n_above_thr<=5) {
-        timeval1fit = gMinuit->GetParameter(0);
-        chargeval1fit = gMinuit->GetParameter(1);
-        pedvalfit = gMinuit->GetParameter(2);
+        timeval1fit = xmin_sp[0];
+        chargeval1fit = xmin_sp[1];
+        pedvalfit = xmin_sp[2];
      } else {
-        timeval1fit = gMinuit->GetParameter(0);
-        timeval2fit = gMinuit->GetParameter(1);
-        chargeval1fit = gMinuit->GetParameter(2);
-        chargeval2fit = gMinuit->GetParameter(3);
-        pedvalfit = gMinuit->GetParameter(4);
+        timeval1fit = xmin_dp[0];
+        timeval2fit = xmin_dp[1];
+        chargeval1fit = xmin_dp[2];
+        chargeval2fit = xmin_dp[3];
+        pedvalfit = xmin_dp[4];
      }
 
-     double chi2valfit,edm,errdef;
-     int nvpar,nparx;
-     int fitStatus = gMinuit->GetStats(chi2valfit,edm,errdef,nvpar,nparx);
+     int fitStatus = ifault;
 
      double timevalfit=0.;
      double chargevalfit=0.;
@@ -399,14 +347,15 @@ int PulseShapeFitOOTPileupCorrection::pulseShapeFit(const std::vector<double> & 
         }
      }
 
-     if( gMinuit ) delete gMinuit;
-
      fitParsVec.clear();
 
      fitParsVec.push_back(chargevalfit);
      fitParsVec.push_back(timevalfit);
      fitParsVec.push_back(pedvalfit);
-     fitParsVec.push_back(chi2valfit);
+     fitParsVec.push_back(ynewlo);
+     fitParsVec.push_back(icount);
+     fitParsVec.push_back(numres);
+     fitParsVec.push_back(ifault);
 
      return fitStatus;
 }
