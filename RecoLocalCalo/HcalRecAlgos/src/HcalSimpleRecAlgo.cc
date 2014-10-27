@@ -344,6 +344,7 @@ namespace HcalSimpleRecAlgoImpl {
        }
        
        psFitOOTpuCorr->apply(cs, capidvec, calibs, correctedOutput);
+
        unsigned int corrOutputSize = correctedOutput.size();
 // Checking fit status... if bad fit, keep original time and amplitude
        if( corrOutputSize > 1 ){ // at least containing FitterFuncs::cntNANinfit

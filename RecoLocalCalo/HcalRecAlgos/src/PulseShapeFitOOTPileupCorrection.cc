@@ -10,6 +10,7 @@ namespace FitterFuncs{
   // we don't need to do an expensive finding of the bin
   // simply take floor(x) and determine if bin center is above or below
   // bin center is just bin + 0.5, inputs bins are 1ns wide
+  // The fact is that x>=0.
    float fast_interpolate(double x, const std::array<float,256>& h1) {
       if( x != x ){
          cntNANinfit ++;
@@ -22,10 +23,8 @@ namespace FitterFuncs{
       else if ( x > 255.5 ) return h1[255];
 
       const int bin_0 = ( x < bin+0.5 ? bin-1 : bin );
-      const int bin_1 = ( x < bin+0.5 ? bin : bin+1 );
 
-      const float slope = (h1[bin_1] - h1[bin_0])/(bin_1-bin_0);
-      return h1[bin_0] + (x-bin_0-0.5f)*slope;
+      return h1[bin_0] + (x-bin_0-0.5f)*(h1[bin_0+1] - h1[bin_0]);
    }
 
    std::array<float,10> funcHPDShape(const std::vector<double>& pars,
@@ -38,14 +37,22 @@ namespace FitterFuncs{
     // zeroing output binned pulse shape
       std::array<float,num_bx> ntmpbin{ {0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f} };
 
+      float par0 = pars[0];
+// trying to bring the par0 back to range in case of Simplex optimization...
+      if( par0 < -100.0f ) par0 = -100.0f; else if ( par0 > 75.0f ) par0 = 75.0f;
       for(int i=0;i < num_ns; ++i) {
-         const float offset = i - 98.5f - pars[0]; // where does 98.5 come from?
-         const float shifted_pulse1 = (offset < 0.0f ? 0.0f : fast_interpolate(offset,h1_single));
-         ntmpbin[i/ns_per_bx] += shifted_pulse1;
+         const float offset = i - 98.5f - par0; // where does 98.5 come from?
+         if( offset < 0.0f ) continue;
+         ntmpbin[i/ns_per_bx] += fast_interpolate(offset,h1_single);
       }
     // now we use ntmpbin to record the final pulse shape
+// trying to bring the par1 and par2 back to range in case of Simplex optimization...
+// NOT working well...
+      float par1 = (pars[1] < 0 ? 0.0f : pars[1]);
+      float par2 = (pars[2] < 0 ? 0.0f : pars[2]);
       for(int i=0; i < num_bx; ++i) {
-         ntmpbin[i] = pars[1]*ntmpbin[i] + pars[2];
+         ntmpbin[i] *= par1;
+         ntmpbin[i] += par2;
       }
       return ntmpbin;
    }
@@ -61,22 +68,34 @@ namespace FitterFuncs{
       std::array<float,num_bx> ntmpbin{ {0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f} };
       std::array<float,num_bx> ntmpbin2{ {0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f} };
 
+// trying to bring the par0 and par1 back to range in case of Simplex optimization...
+      float par0 = pars[0];
+      if( par0 < -100.0f ) par0 = -100.0f; else if ( par0 > 75.0f ) par0 = 75.0f;
+      float par1 = pars[1];
+      if( par1 < -100.0f ) par1 = -100.0f; else if ( par1 > 75.0f ) par1 = 75.0f;
       for(int i=0;i < num_ns;++i) {
-         const float offset1 = i - 98.5 - pars[0]; // where does 98.5 come from?
-         const float offset2 = i - 98.5 - pars[1];
+         const float offset1 = i - 98.5f - par0; // where does 98.5 come from?
+         const float offset2 = i - 98.5f - par1;
 
          ntmpbin[i/ns_per_bx] += (offset1 < 0.0f ? 0.0f : fast_interpolate(offset1,h1_double));
          ntmpbin2[i/ns_per_bx] += (offset2 < 0.0f ? 0.0f : fast_interpolate(offset2,h1_double));
       }
     // now we use ntmpbin to record the final pulse shape
+// trying to bring the par2, par3 and par4 back to range in case of Simplex optimization...
+// NOT working well...
+      float par2 = (pars[2] < 0 ? 0.0f : pars[2]);
+      float par3 = (pars[3] < 0 ? 0.0f : pars[3]);
+      float par4 = (pars[4] < 0 ? 0.0f : pars[4]);
       for(int i=0; i < num_bx; ++i) {
-         ntmpbin[i] = pars[2]*ntmpbin[i]+pars[3]*ntmpbin2[i]+pars[4];
+         ntmpbin[i] *= par2;
+         ntmpbin2[i] *= par3;
+         ntmpbin[i] += ntmpbin2[i] + par4;
       }
       return ntmpbin;
    }
 
    SinglePulseShapeFunctor::SinglePulseShapeFunctor(const HcalPulseShapes::Shape& pulse) {
-      for(int i=0;i<256;i++) {
+      for(int i=0;i<256;++i) {
          pulse_hist[i] = pulse(i);
       }
    }
@@ -85,11 +104,13 @@ namespace FitterFuncs{
    }
   
    double SinglePulseShapeFunctor::operator()(const std::vector<double>& pars) const {
+//      if( pars[0] < -100.0f || pars[0] > 75.0f || pars[1] < 0.0f || pars[2] < 0.0f ) return 9999.0; 
+
       constexpr unsigned nbins = 10;
       unsigned i;
 
       //calculate chisquare
-      double chisq = 0;
+      double chisq(0);
       double delta;
       std::array<float,nbins> pulse_shape = std::move(funcHPDShape(pars,pulse_hist));
       for (i=0;i<nbins; ++i) {
@@ -100,7 +121,7 @@ namespace FitterFuncs{
    }
   
    DoublePulseShapeFunctor::DoublePulseShapeFunctor(const HcalPulseShapes::Shape& pulse) {
-      for(int i=0;i<256;i++) {
+      for(int i=0;i<256;++i) {
          pulse_hist[i] = pulse(i);
       }
    }
@@ -109,13 +130,14 @@ namespace FitterFuncs{
    }
 
    double DoublePulseShapeFunctor::operator()(const std::vector<double>& pars) const {
+//      if( pars[0] < -100.0f || pars[0] > 75.0f || pars[1] < -100.0f || pars[1] > 75.0f || pars[2] < 0.0f || pars[3] < 0.0f || pars[4] < 0.0f ) return 9999.0; 
+
       constexpr unsigned nbins = 10;
       unsigned i;
 
       //calculate chisquare
-      double chisq = 0;
+      double chisq(0);
       double delta;
-      //double val[1];
       std::array<float,nbins> pulse_shape = std::move(func_DoublePulse_HPDShape(pars,pulse_hist));
       for (i=0;i<nbins; ++i) {
          delta = (psFit_y[i]- pulse_shape[i])/psFit_erry[i];
@@ -128,14 +150,12 @@ namespace FitterFuncs{
    std::auto_ptr<DoublePulseShapeFunctor> dpsfPtr_;
 
    double singlePulseShapeFunc( double x[3] ) {
-      std::vector<double> pars;
-      for(int i=0; i<3; i++) pars.push_back(x[i]);
+      std::vector<double> pars(x, x+3);
       return (*spsfPtr_)(pars);
    }
 
    double doublePulseShapeFunc( double x[5] ) {
-      std::vector<double> pars;
-      for(int i=0; i<5; i++) pars.push_back(x[i]);
+      std::vector<double> pars(x, x+5);
       return (*dpsfPtr_)(pars);
    }
 
@@ -157,14 +177,11 @@ void PulseShapeFitOOTPileupCorrection::apply(const CaloSamples & cs, const std::
 {
    FitterFuncs::cntNANinfit = 0;
 
-//   CaloSamples cs;
-//   coder.adc2fC(digi,cs);
    std::vector<double> chargeVec, pedVec;
    std::vector<double> energyVec, pedenVec;
-   double TSTOT = 0, TStrig = 0; // in fC
-   double TSTOTen = 0; // in GeV
-   for(int ip=0; ip<cs.size(); ip++){
-//      const int capid = digi[ip].capid();
+   double TSTOT(0), TStrig(0); // in fC
+   double TSTOTen(0); // in GeV
+   for(int ip=0; ip<cs.size(); ++ip){
       const int capid = capidvec[ip];
       double charge = cs[ip];
       double ped = calibs.pedestal(capid);
@@ -192,22 +209,32 @@ void PulseShapeFitOOTPileupCorrection::apply(const CaloSamples & cs, const std::
 
 int PulseShapeFitOOTPileupCorrection::pulseShapeFit(const std::vector<double> & energyVec, const std::vector<double> & pedenVec, const std::vector<double> &chargeVec, const std::vector<double> &pedVec, const double TSTOTen, std::vector<double> &fitParsVec, const std::auto_ptr<FitterFuncs::SinglePulseShapeFunctor>& spsf, const std::auto_ptr<FitterFuncs::DoublePulseShapeFunctor>& dpsf) const{
 
-   int n_max=0;
-   int n_above_thr=0;
-   int first_above_thr_index=-1;
+   int n_max(0);
+   int n_above_thr(0);
+   int first_above_thr_index(-1);
    int max_index[10]={0,0,0,0,0,0,0,0,0,0};
 
-   double TSMAX=0;
-   double TSMAX_NOPED=0;
-   int i_tsmax=0;
+   double TSMAX(0);
+   double TSMAX_NOPED(0), TSMAX_NOPED_modif(0);
+   int i_tsmax(0);
 
-   for(int i=0;i<10;i++){
+   double avgpeden(0);
+
+   for(int i=0;i<10;++i){
       if(energyVec[i]>TSMAX){
          TSMAX=energyVec[i];
          TSMAX_NOPED=energyVec[i]-pedenVec[i];
          i_tsmax = i;
       }
+      avgpeden += pedenVec[i];
    }
+
+   double preTS = ( i_tsmax-1 >= 0 ? energyVec[i_tsmax-1] - pedenVec[i_tsmax-1]: 0);
+   double posTS = ( i_tsmax+1 < 10 ? energyVec[i_tsmax+1] - pedenVec[i_tsmax+1]: 0);
+
+   TSMAX_NOPED_modif = (posTS > preTS ? TSMAX_NOPED + posTS: TSMAX_NOPED + preTS);
+
+   avgpeden /= 10.0;
 
    double TIMES[10]={-100,-75,-50,-25,0,25,50,75,100,125};
 
@@ -216,14 +243,11 @@ int PulseShapeFitOOTPileupCorrection::pulseShapeFit(const std::vector<double> & 
    }
 
    double error = 1.;
-   for(int i=0;i<10;i++){
+   for(int i=0;i<10;++i){
       FitterFuncs::psFit_x[i]=i;
       FitterFuncs::psFit_y[i]=energyVec[i];
       FitterFuncs::psFit_erry[i]=error;
    }
-
-   TFitterMinuit * gMinuit = new TFitterMinuit();
-   gMinuit->SetPrintLevel(-1);
 
    for(int i=0;i!=10;++i){
       if((chargeVec[i])>6){
@@ -264,18 +288,20 @@ int PulseShapeFitOOTPileupCorrection::pulseShapeFit(const std::vector<double> & 
       }
 
       double xmin_sp[3] = {}, xmin_dp[5] = {};
-      double reqmin = 1.0E-12;
+      double reqmin(1.0E-12);
 
-      int icount =0;
-      int ifault =0;
-      int kcount = 2500;
-      int konvge = 10;
-      int numres = 0;
-      double ynewlo = 0;
+      int icount(0);
+      int ifault(0);
+      int kcount(2500);
+      int konvge(10);
+      int numres(0);
+      double ynewlo(0);
 
       if(n_above_thr<=5){
          // Set starting values and step sizes for parameters
-         double vstart[3] = {TIMES[i_tsmax-1],TSMAX_NOPED,0};
+//         double vstart[3] = {TIMES[i_tsmax-1],TSMAX_NOPED,0};
+         double vstart[3] = {TIMES[i_tsmax-1], TSMAX_NOPED_modif, avgpeden};
+//         double vstart[3] = {TIMES[i_tsmax-1], TSTOTen, avgpeden};
 
          double step[3] = {0.1,0.1,0.1};
 
@@ -286,7 +312,9 @@ int PulseShapeFitOOTPileupCorrection::pulseShapeFit(const std::vector<double> & 
       } else {
          if(n_max==1){
             // Set starting values and step sizes for parameters
-            double vstart[5] = {TIMES[i_tsmax-1],TIMES[first_above_thr_index-1],TSMAX_NOPED,0,0};
+            double vstart[5] = {TIMES[i_tsmax-1], TIMES[first_above_thr_index-1], TSMAX_NOPED, 0, 0};
+//            double vstart[5] = {TIMES[i_tsmax-1], TIMES[first_above_thr_index-1], TSMAX_NOPED, energyVec[first_above_thr_index-1]-pedenVec[first_above_thr_index-1], avgpeden};
+//            double vstart[5] = {TIMES[i_tsmax-1], TIMES[first_above_thr_index-1], TSTOTen-energyVec[first_above_thr_index-1]+pedenVec[first_above_thr_index-1], energyVec[first_above_thr_index-1]-pedenVec[first_above_thr_index-1], avgpeden};
 
             Double_t step[5] = {0.1,0.1,0.1,0.1,0.1};
 
@@ -296,7 +324,9 @@ int PulseShapeFitOOTPileupCorrection::pulseShapeFit(const std::vector<double> & 
 
         } else if(n_max>=2) {
            // Set starting values and step sizes for parameters
-           double vstart[5] = {TIMES[max_index[0]-1],TIMES[max_index[1]-1],TSMAX_NOPED,0,0};
+           double vstart[5] = {TIMES[max_index[0]-1], TIMES[max_index[1]-1], TSMAX_NOPED, 0, 0};
+//           double vstart[5] = {TIMES[max_index[0]-1], TIMES[max_index[1]-1], TSMAX_NOPED, energyVec[max_index[1]-1]-pedenVec[max_index[1]-1], avgpeden};
+//           double vstart[5] = {TIMES[max_index[0]-1], TIMES[max_index[1]-1], TSTOTen-energyVec[max_index[1]-1]+pedenVec[max_index[1]-1], energyVec[max_index[1]-1]-pedenVec[max_index[1]-1], avgpeden};
 
            double step[5] = {0.1,0.1,0.1,0.1,0.1};
 
@@ -306,11 +336,11 @@ int PulseShapeFitOOTPileupCorrection::pulseShapeFit(const std::vector<double> & 
         }
      }
 
-     double timeval1fit=-999;
-     double chargeval1fit=-999;
-     double timeval2fit=-999;
-     double chargeval2fit=-999;
-     double pedvalfit=-999;
+     double timeval1fit(-999);
+     double chargeval1fit(-999);
+     double timeval2fit(-999);
+     double chargeval2fit(-999);
+     double pedvalfit(-999);
 
      if(n_above_thr<=5) {
         timeval1fit = xmin_sp[0];
@@ -323,8 +353,6 @@ int PulseShapeFitOOTPileupCorrection::pulseShapeFit(const std::vector<double> & 
         chargeval2fit = xmin_dp[3];
         pedvalfit = xmin_dp[4];
      }
-
-     int fitStatus = ifault;
 
      double timevalfit=0.;
      double chargevalfit=0.;
@@ -356,6 +384,13 @@ int PulseShapeFitOOTPileupCorrection::pulseShapeFit(const std::vector<double> & 
      fitParsVec.push_back(icount);
      fitParsVec.push_back(numres);
      fitParsVec.push_back(ifault);
+     if( n_above_thr<=5 ){
+        fitParsVec.push_back(0);
+     }else if( n_max==1 ){
+        fitParsVec.push_back(1);
+     }else if( n_max>=2 ) {
+        fitParsVec.push_back(2);
+     }
 
-     return fitStatus;
+     return ifault;
 }

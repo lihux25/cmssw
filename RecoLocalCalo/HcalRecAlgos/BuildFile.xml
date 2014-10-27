@@ -10,7 +10,7 @@
 <use   name="FWCore/PluginManager"/>
 <use   name="FWCore/ParameterSet"/>
 <use   name="rootminuit2"/>
-<Flags CXXFLAGS="-g"/>
+<Flags CXXFLAGS="-Ofast"/>
 <export>
   <lib   name="1"/>
 </export>
