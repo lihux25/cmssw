@@ -140,11 +140,11 @@ namespace FitterFuncs{
   
    double PulseShapeFunctor::EvalSinglePulse(const std::vector<double>& pars) const {
       constexpr unsigned nbins = 10;
-      unsigned i;
+      unsigned i =0;
 
       //calculate chisquare
       double chisq = 0;
-      double delta;
+      double delta =0;
       std::array<float,nbins> pulse_shape = std::move(funcHPDShape(pars,pulse_hist, acc25nsVec, diff25nsItvlVec, accVarLenIdxZEROVec, diffVarItvlIdxZEROVec, accVarLenIdxMinusOneVec, diffVarItvlIdxMinusOneVec));
       for (i=0;i<nbins; ++i) {
          delta = (psFit_y[i]- pulse_shape[i])/psFit_erry[i];
@@ -155,11 +155,11 @@ namespace FitterFuncs{
 
    double PulseShapeFunctor::EvalDoublePulse(const std::vector<double>& pars) const {
       constexpr unsigned nbins = 10;
-      unsigned i;
+      unsigned i =0;
 
       //calculate chisquare
       double chisq = 0;
-      double delta;
+      double delta = 0;
       //double val[1];
       std::array<float,nbins> pulse_shape = std::move(func_DoublePulse_HPDShape(pars,pulse_hist, acc25nsVec, diff25nsItvlVec, accVarLenIdxZEROVec, diffVarItvlIdxZEROVec, accVarLenIdxMinusOneVec, diffVarItvlIdxMinusOneVec));
       for (i=0;i<nbins; ++i) {
@@ -182,9 +182,10 @@ namespace FitterFuncs{
    }
 }
 
-PulseShapeFitOOTPileupCorrection::PulseShapeFitOOTPileupCorrection() : cntsetPulseShape(0)
+PulseShapeFitOOTPileupCorrection::PulseShapeFitOOTPileupCorrection() : cntsetPulseShape(0), chargeThreshold_(6.)
 {
    hybridfitter = new PSFitter::HybridMinimizer(PSFitter::HybridMinimizer::kMigrad);
+   iniTimesArr = { {-100,-75,-50,-25,0,25,50,75,100,125} };
 }
 
 PulseShapeFitOOTPileupCorrection::~PulseShapeFitOOTPileupCorrection()
@@ -198,15 +199,21 @@ void PulseShapeFitOOTPileupCorrection::setPulseShapeTemplate(const HcalPulseShap
    FitterFuncs::psfPtr_.reset(new FitterFuncs::PulseShapeFunctor(ps));
 }
 
+void PulseShapeFitOOTPileupCorrection::resetPulseShapeTemplate(const HcalPulseShapes::Shape& ps) {
+   ++ cntsetPulseShape;
+   FitterFuncs::psfPtr_.reset(new FitterFuncs::PulseShapeFunctor(ps));
+}
+
 void PulseShapeFitOOTPileupCorrection::apply(const CaloSamples & cs, const std::vector<int> & capidvec, const HcalCalibrations & calibs, std::vector<double> & correctedOutput) const
 {
    FitterFuncs::cntNANinfit = 0;
 
-   std::vector<double> chargeVec, pedVec;
-   std::vector<double> energyVec, pedenVec;
-   double TSTOT = 0, TStrig = 0; // in fC
-   double TSTOTen = 0; // in GeV
-   for(int ip=0; ip<cs.size(); ++ip){
+   const unsigned int cssize = cs.size();
+   double chargeArr[cssize], pedArr[cssize];
+   double energyArr[cssize], pedenArr[cssize];
+   double tsTOT = 0, tstrig = 0; // in fC
+   double tsTOTen = 0; // in GeV
+   for(unsigned int ip=0; ip<cssize; ++ip){
       const int capid = capidvec[ip];
       double charge = cs[ip];
       double ped = calibs.pedestal(capid);
@@ -215,43 +222,44 @@ void PulseShapeFitOOTPileupCorrection::apply(const CaloSamples & cs, const std::
       double energy = charge*gain;
       double peden = ped*gain;
 
-      chargeVec.push_back(charge); pedVec.push_back(ped);
-      energyVec.push_back(energy); pedenVec.push_back(peden);
+      chargeArr[ip] = charge; pedArr[ip] = ped;
+      energyArr[ip] = energy; pedenArr[ip] = peden;
 
-      TSTOT += charge - ped;
-      TSTOTen += energy - peden;
+      tsTOT += charge - ped;
+      tsTOTen += energy - peden;
       if( ip ==4 ){
-         TStrig = charge - ped;
+         tstrig = charge - ped;
       }
    }
    std::vector<double> fitParsVec;
-   if( TStrig >= 4 && TSTOT >= 10 ){
-      pulseShapeFit(energyVec, pedenVec, chargeVec, pedVec, TSTOTen, fitParsVec);
+   if( tstrig >= 4 && tsTOT >= 10 ){
+      pulseShapeFit(energyArr, pedenArr, chargeArr, pedArr, tsTOTen, fitParsVec);
 //      double time = fitParsVec[1], ampl = fitParsVec[0], uncorr_ampl = fitParsVec[0];
    }
    correctedOutput.swap(fitParsVec); correctedOutput.push_back(FitterFuncs::cntNANinfit);
 }
 
-int PulseShapeFitOOTPileupCorrection::pulseShapeFit(const std::vector<double> & energyVec, const std::vector<double> & pedenVec, const std::vector<double> &chargeVec, const std::vector<double> &pedVec, const double TSTOTen, std::vector<double> &fitParsVec) const{
+constexpr char const* sp_varNames[] = {"time", "energy", "ped"};
+constexpr char const* dp_varNames[] = {"time1", "time2", "energy1", "energy2", "ped"};
+
+int PulseShapeFitOOTPileupCorrection::pulseShapeFit(const double * energyArr, const double * pedenArr, const double *chargeArr, const double *pedArr, const double tsTOTen, std::vector<double> &fitParsVec) const{
 
    int n_max=0;
    int n_above_thr=0;
    int first_above_thr_index=-1;
    int max_index[10]={0,0,0,0,0,0,0,0,0,0};
 
-   double TSMAX=0;
-   double TSMAX_NOPED=0;
+   double tsMAX=0;
+   double tsMAX_NOPED=0;
    int i_tsmax=0;
 
    for(int i=0;i<10;++i){
-      if(energyVec[i]>TSMAX){
-         TSMAX=energyVec[i];
-         TSMAX_NOPED=energyVec[i]-pedenVec[i];
+      if(energyArr[i]>tsMAX){
+         tsMAX=energyArr[i];
+         tsMAX_NOPED=energyArr[i]-pedenArr[i];
          i_tsmax = i;
       }
    }
-
-   double TIMES[10]={-100,-75,-50,-25,0,25,50,75,100,125};
 
    if(n_max==0){
       max_index[0]=i_tsmax;
@@ -260,12 +268,12 @@ int PulseShapeFitOOTPileupCorrection::pulseShapeFit(const std::vector<double> & 
    double error = 1.;
    for(int i=0;i<10;++i){
       FitterFuncs::psFit_x[i]=i;
-      FitterFuncs::psFit_y[i]=energyVec[i];
+      FitterFuncs::psFit_y[i]=energyArr[i];
       FitterFuncs::psFit_erry[i]=error;
    }
 
    for(int i=0;i!=10;++i){
-      if((chargeVec[i])>6){
+      if((chargeArr[i])>chargeThreshold_){
          n_above_thr++;
          if(first_above_thr_index==-1){
             first_above_thr_index=i;
@@ -277,20 +285,20 @@ int PulseShapeFitOOTPileupCorrection::pulseShapeFit(const std::vector<double> & 
    for( int i=0 ; i < 10; ++i ) {
       switch( i ) {
          case 0:
-            if(chargeVec[i]<=6 && chargeVec[i+1]<=6) continue;
-            if( chargeVec[i+1] < chargeVec[i] ) {
+            if(chargeArr[i]<=chargeThreshold_ && chargeArr[i+1]<=chargeThreshold_) continue;
+            if( chargeArr[i+1] < chargeArr[i] ) {
                max_index[n_max++] = i;
             }
             break;
          case 9:
-            if(chargeVec[i]<=6 && chargeVec[i-1]<=6) continue;
-            if( chargeVec[i-1] < chargeVec[i] ) {
+            if(chargeArr[i]<=chargeThreshold_ && chargeArr[i-1]<=chargeThreshold_) continue;
+            if( chargeArr[i-1] < chargeArr[i] ) {
                max_index[n_max++] = i;
             }
             break;
          default:
-            if(chargeVec[i-1]<=6 && chargeVec[i]<=6 && chargeVec[i+1]<=6) continue;
-            if( chargeVec[i-1] < chargeVec[i] && chargeVec[i+1] < chargeVec[i]) {
+            if(chargeArr[i-1]<=chargeThreshold_ && chargeArr[i]<=chargeThreshold_ && chargeArr[i+1]<=chargeThreshold_) continue;
+            if( chargeArr[i-1] < chargeArr[i] && chargeArr[i+1] < chargeArr[i]) {
                max_index[n_max++] = i;
             }
             break;
@@ -305,19 +313,19 @@ int PulseShapeFitOOTPileupCorrection::pulseShapeFit(const std::vector<double> & 
       bool fitStatus = false;
       if(n_above_thr<=5){
          // Set starting values and step sizes for parameters
-         double vstart[3] = {TIMES[i_tsmax-1], TSMAX_NOPED, 0};
+         double vstart[3] = {iniTimesArr[i_tsmax-1], tsMAX_NOPED, 0};
          double step[3] = {0.1, 0.1, 0.1};
 
          ROOT::Math::Functor spfunctor(&FitterFuncs::singlePulseShapeFunc, 3);
 
          hybridfitter->SetFunction(spfunctor);
          hybridfitter->Clear();
-         hybridfitter->SetLimitedVariable(0, "time", vstart[0], step[0], -100, 75);
-         hybridfitter->SetLimitedVariable(1, "energy", vstart[1], step[1], 0, TSTOTen);
-         hybridfitter->SetLimitedVariable(2, "ped", vstart[2], step[2], 0, TSTOTen);
+         hybridfitter->SetLimitedVariable(0, sp_varNames[0], vstart[0], step[0], -100, 75);
+         hybridfitter->SetLimitedVariable(1, sp_varNames[1], vstart[1], step[1], 0, tsTOTen);
+         hybridfitter->SetLimitedVariable(2, sp_varNames[2], vstart[2], step[2], 0, tsTOTen);
 
          double chi2=9999.;
-         for(int tries=0; tries<=3;tries++){
+         for(int tries=0; tries<=3;++tries){
 
             hybridfitter->SetMinimizerType(PSFitter::HybridMinimizer::kMigrad);
             fitStatus = hybridfitter->Minimize();
@@ -346,18 +354,18 @@ int PulseShapeFitOOTPileupCorrection::pulseShapeFit(const std::vector<double> & 
 
          if(n_max==1){
             // Set starting values and step sizes for parameters
-            double vstart[5] = {TIMES[i_tsmax-1], TIMES[first_above_thr_index-1], TSMAX_NOPED, 0, 0};
+            double vstart[5] = {iniTimesArr[i_tsmax-1], iniTimesArr[first_above_thr_index-1], tsMAX_NOPED, 0, 0};
             Double_t step[5] = {0.1, 0.1, 0.1, 0.1, 0.1};
 
             hybridfitter->Clear();
-            hybridfitter->SetLimitedVariable(0, "time1", vstart[0], step[0], -100, 75);
-            hybridfitter->SetLimitedVariable(1, "time2", vstart[1], step[1], -100, 75);
-            hybridfitter->SetLimitedVariable(2, "energy1", vstart[2], step[2], 0, TSTOTen);
-            hybridfitter->SetLimitedVariable(3, "energy2", vstart[3], step[3], 0, TSTOTen);
-            hybridfitter->SetLimitedVariable(4, "ped", vstart[4], step[4], 0, TSTOTen);
+            hybridfitter->SetLimitedVariable(0, dp_varNames[0], vstart[0], step[0], -100, 75);
+            hybridfitter->SetLimitedVariable(1, dp_varNames[1], vstart[1], step[1], -100, 75);
+            hybridfitter->SetLimitedVariable(2, dp_varNames[2], vstart[2], step[2], 0, tsTOTen);
+            hybridfitter->SetLimitedVariable(3, dp_varNames[3], vstart[3], step[3], 0, tsTOTen);
+            hybridfitter->SetLimitedVariable(4, dp_varNames[4], vstart[4], step[4], 0, tsTOTen);
 
             double chi2=9999.;
-            for(int tries=0; tries<=3;tries++) {
+            for(int tries=0; tries<=3;++tries) {
             // Now ready for minimization step
 
                hybridfitter->SetMinimizerType(PSFitter::HybridMinimizer::kMigrad);
@@ -380,18 +388,18 @@ int PulseShapeFitOOTPileupCorrection::pulseShapeFit(const std::vector<double> & 
            }
         } else if(n_max>=2) {
            // Set starting values and step sizes for parameters
-           double vstart[5] = {TIMES[max_index[0]-1], TIMES[max_index[1]-1], TSMAX_NOPED, 0, 0};
+           double vstart[5] = {iniTimesArr[max_index[0]-1], iniTimesArr[max_index[1]-1], tsMAX_NOPED, 0, 0};
            double step[5] = {0.1, 0.1, 0.1, 0.1, 0.1};
 
            hybridfitter->Clear();
-           hybridfitter->SetLimitedVariable(0, "time1", vstart[0], step[0], -100, 75);
-           hybridfitter->SetLimitedVariable(1, "time2", vstart[1], step[1], -100, 75);
-           hybridfitter->SetLimitedVariable(2, "energy1", vstart[2], step[2], 0, TSTOTen);
-           hybridfitter->SetLimitedVariable(3, "energy2", vstart[3], step[3], 0, TSTOTen);
-           hybridfitter->SetLimitedVariable(4, "ped", vstart[4], step[4], 0, TSTOTen);
+           hybridfitter->SetLimitedVariable(0, dp_varNames[0], vstart[0], step[0], -100, 75);
+           hybridfitter->SetLimitedVariable(1, dp_varNames[1], vstart[1], step[1], -100, 75);
+           hybridfitter->SetLimitedVariable(2, dp_varNames[2], vstart[2], step[2], 0, tsTOTen);
+           hybridfitter->SetLimitedVariable(3, dp_varNames[3], vstart[3], step[3], 0, tsTOTen);
+           hybridfitter->SetLimitedVariable(4, dp_varNames[4], vstart[4], step[4], 0, tsTOTen);
 
            double chi2=9999.;
-           for(int tries=0; tries<=3;tries++) {
+           for(int tries=0; tries<=3;++tries) {
            // Now ready for minimization step
 
               hybridfitter->SetMinimizerType(PSFitter::HybridMinimizer::kMigrad);

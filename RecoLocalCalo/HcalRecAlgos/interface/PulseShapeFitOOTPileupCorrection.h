@@ -41,25 +41,23 @@ public:
     PulseShapeFitOOTPileupCorrection();
     ~PulseShapeFitOOTPileupCorrection();
 
-    // Main correction application method to be implemented by
-    // derived classes. Arguments are as follows:
-    //
-    //
-    // Some of the input arguments may be ignored by derived classes.
-    //
     void apply(const CaloSamples & cs, const std::vector<int> & capidvec, const HcalCalibrations & calibs, std::vector<double> & correctedOutput) const;
 
     void setPulseShapeTemplate(const HcalPulseShapes::Shape& ps);
+    void resetPulseShapeTemplate(const HcalPulseShapes::Shape& ps);
+    void setChargeThreshold(double chargeThrInput){ chargeThreshold_ = chargeThrInput; }
 
 private:
 
-    bool useDataPulseShape_;
-
-    int pulseShapeFit(const std::vector<double> & energyVec, const std::vector<double> & pedenVec, const std::vector<double> &chargeVec, const std::vector<double> &pedVec, const double TSTOTen, std::vector<double> &fitParsVec) const;
+    int pulseShapeFit(const double * energyArr, const double * pedenArr, const double *chargeArr, const double *pedArr, const double tsTOTen, std::vector<double> &fitParsVec) const;
 
     PSFitter::HybridMinimizer * hybridfitter;
 
     int cntsetPulseShape;
+
+    std::array<double,10> iniTimesArr;
+
+    double chargeThreshold_;
 };
 
 #endif // PulseShapeFitOOTPileupCorrection_h
