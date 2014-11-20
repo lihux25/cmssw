@@ -16,5 +16,6 @@
 <use   name="CondFormats/HcalObjects"/>
 <use   name="RecoLocalCalo/HcalRecAlgos"/>
 <use   name="RecoLocalCalo/EcalRecAlgos"/>
+<use   name="Geometry/FCalGeometry"/>
 <use   name="clhep"/>
 <use   name="hepmc"/>

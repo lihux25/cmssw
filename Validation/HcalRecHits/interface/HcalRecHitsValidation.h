@@ -54,6 +54,13 @@
 // severity level assignment for ECAL
 #include "RecoLocalCalo/EcalRecAlgos/interface/EcalSeverityLevelAlgo.h"
 
+#include "Geometry/FCalGeometry/interface/HGCalGeometry.h"
+
+#include "Geometry/Records/interface/CaloGeometryRecord.h"
+#include "Geometry/HGCalCommonData/interface/ShashlikDDDConstants.h"
+#include "Geometry/CaloTopology/interface/ShashlikTopology.h"
+#include "Geometry/FCalGeometry/interface/ShashlikGeometry.h"
+#include "Geometry/CaloGeometry/interface/CaloGeometry.h"
 
 class HcalRecHitsValidation : public edm::EDAnalyzer {
  public:
@@ -447,7 +454,8 @@ class HcalRecHitsValidation : public edm::EDAnalyzer {
   MonitorElement* meNumEcalRecHitsConeHB;
   MonitorElement* meNumEcalRecHitsConeHE;
 
-  edm::ESHandle<CaloGeometry> geometry ;
+  edm::ESHandle<CaloGeometry> geometry_HB ;
+  edm::ESHandle<CaloSubdetectorGeometry> geometry ;
 
   //Status word histos
   MonitorElement* RecHit_StatusWord_HB;
@@ -480,6 +488,8 @@ class HcalRecHitsValidation : public edm::EDAnalyzer {
 
   // counter
   int nevtot;
+
+  edm::ESHandle<HGCalGeometry> geom;
 
 };
 

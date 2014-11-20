@@ -982,20 +982,30 @@ void HcalRecHitsValidation::analyze(edm::Event const& ev, edm::EventSetup const&
 
   //   std::cout << "*** 2" << std::endl; 
   //   previously was:  c.get<IdealGeometryRecord>().get (geometry);
-  c.get<CaloGeometryRecord>().get (geometry);
+  c.get<CaloGeometryRecord>().get (geometry_HB);
+  c.get<ShashlikGeometryRecord>().get (geometry);
 
   // HCAL channel status map ****************************************
-  edm::ESHandle<HcalChannelQuality> hcalChStatus;
-  c.get<HcalChannelQualityRcd>().get( hcalChStatus );
-  theHcalChStatus = hcalChStatus.product();
+//  edm::ESHandle<HcalChannelQuality> hcalChStatus;
+//  c.get<HcalChannelQualityRcd>().get( hcalChStatus );
+
+//  edm::ESHandle<HcalTopology> topo;
+//  c.get<IdealGeometryRecord>().get(topo);
+  edm::ESHandle<ShashlikTopology> topo;
+  c.get<ShashlikNumberingRecord>().get(topo);
+
+//  theHcalChStatus = hcalChStatus.product();
+
+//  if( !theHcalChStatus->topo() ) theHcalChStatus->setTopo(topo.product());
+
   // Assignment of severity levels **********************************
-  edm::ESHandle<HcalSeverityLevelComputer> hcalSevLvlComputerHndl;
-  c.get<HcalSeverityLevelComputerRcd>().get(hcalSevLvlComputerHndl);
-  theHcalSevLvlComputer = hcalSevLvlComputerHndl.product(); 
+//  edm::ESHandle<HcalSeverityLevelComputer> hcalSevLvlComputerHndl;
+//  c.get<HcalSeverityLevelComputerRcd>().get(hcalSevLvlComputerHndl);
+//  theHcalSevLvlComputer = hcalSevLvlComputerHndl.product(); 
 
   // Fill working vectors of HCAL RecHits quantities (all of these are drawn)
   fillRecHitsTmp(subdet_, ev); 
-
+/*
   // HB   
   if( subdet_ ==5 || subdet_ == 1 ){ 
      for(unsigned int iv=0; iv<hcalHBSevLvlVec.size(); iv++){
@@ -1020,7 +1030,7 @@ void HcalRecHitsValidation::analyze(edm::Event const& ev, edm::EventSetup const&
         sevLvl_HF->Fill(hcalHFSevLvlVec[iv]);
      }
   } 
-
+*/
   //  std::cout << "*** 3" << std::endl; 
 
 
@@ -1032,7 +1042,7 @@ void HcalRecHitsValidation::analyze(edm::Event const& ev, edm::EventSetup const&
   if(ecalselector_ == "yes" && (subdet_ == 1 || subdet_ == 2 || subdet_ == 5)) {
     Handle<EBRecHitCollection> rhitEB;
 
-
+//      std::cout<<"get rhitEB"<<std::endl;
       ev.getByLabel("ecalRecHit","EcalRecHitsEB", rhitEB);
 
     EcalRecHitCollection::const_iterator RecHit = rhitEB.product()->begin();  
@@ -1042,7 +1052,7 @@ void HcalRecHitsValidation::analyze(edm::Event const& ev, edm::EventSetup const&
       EBDetId EBid = EBDetId(RecHit->id());
        
       const CaloCellGeometry* cellGeometry =
-	geometry->getSubdetectorGeometry (EBid)->getGeometry (EBid) ;
+	geometry_HB->getGeometry(EBid) ;
       double eta = cellGeometry->getPosition ().eta () ;
       double phi = cellGeometry->getPosition ().phi () ;
       double en  = RecHit->energy();
@@ -1059,9 +1069,10 @@ void HcalRecHitsValidation::analyze(edm::Event const& ev, edm::EventSetup const&
     }
 
     
-    Handle<EERecHitCollection> rhitEE;
+    Handle<EKRecHitCollection> rhitEE;
+//      std::cout<<"get rhitEE"<<std::endl;
  
-      ev.getByLabel("ecalRecHit","EcalRecHitsEE", rhitEE);
+      ev.getByLabel("ecalRecHit","EcalRecHitsEK", rhitEE);
 
     RecHit = rhitEE.product()->begin();  
     RecHitEnd = rhitEE.product()->end();  
@@ -1070,7 +1081,7 @@ void HcalRecHitsValidation::analyze(edm::Event const& ev, edm::EventSetup const&
       EEDetId EEid = EEDetId(RecHit->id());
       
       const CaloCellGeometry* cellGeometry =
-	geometry->getSubdetectorGeometry (EEid)->getGeometry (EEid) ;
+	geometry->getGeometry (EEid) ;
       double eta = cellGeometry->getPosition ().eta () ;
       double phi = cellGeometry->getPosition ().phi () ;	
       double en   = RecHit->energy();
@@ -1087,6 +1098,7 @@ void HcalRecHitsValidation::analyze(edm::Event const& ev, edm::EventSetup const&
     }
   }     // end of ECAL selection 
 
+//  std::cout<<"OUT"<<std::endl;
 
   //     std::cout << "*** 4" << std::endl; 
 
@@ -1802,7 +1814,7 @@ void HcalRecHitsValidation::analyze(edm::Event const& ev, edm::EventSetup const&
       HcalDetId cell(SimHits->id());
       int sub =  cell.subdet();
       const CaloCellGeometry* cellGeometry =
-	geometry->getSubdetectorGeometry (cell)->getGeometry (cell) ;
+	geometry->getGeometry (cell) ;
       double etaS = cellGeometry->getPosition().eta () ;
       double phiS = cellGeometry->getPosition().phi () ;
       double en   = SimHits->energy();    
@@ -1844,7 +1856,7 @@ void HcalRecHitsValidation::analyze(edm::Event const& ev, edm::EventSetup const&
      HcalDetId cell(SimHits->id());
 
       const CaloCellGeometry* cellGeometry =
-	geometry->getSubdetectorGeometry (cell)->getGeometry (cell) ;
+	geometry->getGeometry (cell) ;
       double etaS = cellGeometry->getPosition().eta () ;
       double phiS = cellGeometry->getPosition().phi () ;
       double en   =  SimHits->energy();    
@@ -1924,20 +1936,31 @@ void HcalRecHitsValidation::fillRecHitsTmp(int subdet_, edm::Event const& ev){
   hcalHFSevLvlVec.clear();
   hcalHOSevLvlVec.clear(); 
 
+//  std::cout<<"subdet_ : "<<subdet_<<std::endl;
+
   if( subdet_ == 1 || subdet_ == 2  || subdet_ == 5 || subdet_ == 6 || subdet_ == 0) {
     
     //HBHE
     edm::Handle<HBHERecHitCollection> hbhecoll;
+//    std::cout<<"declear hbhecoll ..."<<std::endl;
+
     ev.getByLabel(theHBHERecHitCollectionLabel, hbhecoll);
+
+//    std::cout<<"get HBHERecHitCollection out"<<"  -->  hbhecoll.size : "<<hbhecoll->size()<<std::endl;
     
     for (HBHERecHitCollection::const_iterator j=hbhecoll->begin(); j != hbhecoll->end(); j++) {
       HcalDetId cell(j->id());
-      const CaloCellGeometry* cellGeometry =
-	geometry->getSubdetectorGeometry (cell)->getGeometry (cell) ;
+//      DetId cell2 = (DetId)(j->id());
+//      std::cout<<"cell : "<<cell<<std::endl;
+      int sub     = cell.subdet();
+//      const CaloCellGeometry* cellGeometry = ( sub == 1 ?  geometry_HB->getGeometry (cell) : geometry->getGeometry(cell) );
+      const CaloCellGeometry* cellGeometry = geometry_HB->getGeometry (cell);
+//      std::cout<<"after cellGeometry"<<std::endl;
       double eta  = cellGeometry->getPosition().eta () ;
       double phi  = cellGeometry->getPosition().phi () ;
       double zc   = cellGeometry->getPosition().z ();
-      int sub     = cell.subdet();
+//      std::cout<<"cell : "<<cell<<"  eta : "<<eta<<"  phi : "<<phi<<"  zc : "<<zc<<std::endl;//"  sub : "<<sub<<"  depth : "<<depth<<"  inteta : "<<inteta<<"  intphi : "<<intphi<<"  en : "<<en<<"  t : "<<t<<"  stwd : "<<stwd<<"  auxstwd : "<<auxstwd<<std::endl;
+//      int sub     = cell.subdet();
       int depth   = cell.depth();
       int inteta  = cell.ieta();
       if(inteta > 0) inteta -= 1;
@@ -1946,14 +1969,15 @@ void HcalRecHitsValidation::fillRecHitsTmp(int subdet_, edm::Event const& ev){
       double t    = j->time();
       int stwd    = j->flags();
       int auxstwd = j->aux();
-      
+//      std::cout<<"cell : "<<cell<<"  eta : "<<eta<<"  phi : "<<phi<<"  zc : "<<zc<<"  sub : "<<sub<<"  depth : "<<depth<<"  inteta : "<<inteta<<"  intphi : "<<intphi<<"  en : "<<en<<"  t : "<<t<<"  stwd : "<<stwd<<"  auxstwd : "<<auxstwd<<std::endl;
+/*      
       int serivityLevel = hcalSevLvl( (CaloRecHit*) &*j );
       if( cell.subdet()==HcalBarrel ){
          hcalHBSevLvlVec.push_back(serivityLevel);
       }else if (cell.subdet()==HcalEndcap ){
          hcalHESevLvlVec.push_back(serivityLevel);
       } 
-      
+*/      
       if((iz > 0 && eta > 0.) || (iz < 0 && eta <0.) || iz == 0) { 
 	
 	csub.push_back(sub);
@@ -1972,6 +1996,8 @@ void HcalRecHitsValidation::fillRecHitsTmp(int subdet_, edm::Event const& ev){
     
   }
 
+//  std::cout<<"subdet_ : "<<subdet_<<std::endl;
+
   if( subdet_ == 4 || subdet_ == 5 || subdet_ == 6 || subdet_ == 0) {
 
     //HF
@@ -1981,7 +2007,7 @@ void HcalRecHitsValidation::fillRecHitsTmp(int subdet_, edm::Event const& ev){
     for (HFRecHitCollection::const_iterator j = hfcoll->begin(); j != hfcoll->end(); j++) {
       HcalDetId cell(j->id());
       const CaloCellGeometry* cellGeometry =
-	geometry->getSubdetectorGeometry (cell)->getGeometry (cell) ;
+	geometry_HB->getGeometry (cell) ;
       double eta   = cellGeometry->getPosition().eta () ;
       double phi   = cellGeometry->getPosition().phi () ;
       double zc     = cellGeometry->getPosition().z ();
@@ -1994,12 +2020,12 @@ void HcalRecHitsValidation::fillRecHitsTmp(int subdet_, edm::Event const& ev){
       double t     = j->time();
       int stwd     = j->flags();
       int auxstwd  = j->aux();
-
+/*
       int serivityLevel = hcalSevLvl( (CaloRecHit*) &*j );
       if( cell.subdet()==HcalForward ){
          hcalHFSevLvlVec.push_back(serivityLevel);
       } 
-
+*/
       if((iz > 0 && eta > 0.) || (iz < 0 && eta <0.) || iz == 0) { 
 	
 	csub.push_back(sub);
@@ -2017,6 +2043,8 @@ void HcalRecHitsValidation::fillRecHitsTmp(int subdet_, edm::Event const& ev){
     }
   }
 
+//  std::cout<<"subdet_ : "<<subdet_<<std::endl;
+
   //HO
   if( subdet_ == 3 || subdet_ == 5 || subdet_ == 6 || subdet_ == 0) {
   
@@ -2026,7 +2054,7 @@ void HcalRecHitsValidation::fillRecHitsTmp(int subdet_, edm::Event const& ev){
     for (HORecHitCollection::const_iterator j = hocoll->begin(); j != hocoll->end(); j++) {
       HcalDetId cell(j->id());
       const CaloCellGeometry* cellGeometry =
-	geometry->getSubdetectorGeometry (cell)->getGeometry (cell) ;
+	geometry_HB->getGeometry (cell) ;
       double eta   = cellGeometry->getPosition().eta () ;
       double phi   = cellGeometry->getPosition().phi () ;
       double zc    = cellGeometry->getPosition().z ();
@@ -2039,12 +2067,12 @@ void HcalRecHitsValidation::fillRecHitsTmp(int subdet_, edm::Event const& ev){
       double en    = j->energy();
       int stwd     = j->flags();
       int auxstwd  = j->aux();
-
+/*
       int serivityLevel = hcalSevLvl( (CaloRecHit*) &*j );
       if( cell.subdet()==HcalOuter ){
          hcalHOSevLvlVec.push_back(serivityLevel);
       } 
-      
+*/      
       if((iz > 0 && eta > 0.) || (iz < 0 && eta <0.) || iz == 0) { 
 	csub.push_back(sub);
 	cen.push_back(en);
@@ -2103,6 +2131,7 @@ double HcalRecHitsValidation::dPhiWsign(double phi1, double phi2) {
 
 }
 
+/*
 int HcalRecHitsValidation::hcalSevLvl(const CaloRecHit* hit){
 
    const DetId id = hit->detid();
@@ -2115,6 +2144,7 @@ int HcalRecHitsValidation::hcalSevLvl(const CaloRecHit* hit){
    return severityLevel;
 
 } 
+*/
 
 DEFINE_FWK_MODULE(HcalRecHitsValidation);
 
