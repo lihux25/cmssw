@@ -11,14 +11,31 @@ HcalTrigTowerDetId::HcalTrigTowerDetId(uint32_t rawid) : DetId(rawid) {
 }
 
 HcalTrigTowerDetId::HcalTrigTowerDetId(int ieta, int iphi) : DetId(Hcal,HcalTriggerTower) {
-  id_|=((ieta>0)?(0x2000|(ieta<<7)):((-ieta)<<7)) |
+  int depth = 1;  // forcing depth = 1 for consistency with emap;
+  int version = 0;
+  id_|= ((depth&0x7)<<14) |
+        ((ieta>0)?(0x2000|(ieta<<7)):((-ieta)<<7)) |
     (iphi&0x7F);
+  id_|=((version&0x7)<<17);
 }
 
 HcalTrigTowerDetId::HcalTrigTowerDetId(int ieta, int iphi, int depth) : DetId(Hcal,HcalTriggerTower) {
-  id_|=((depth&0x7)<<14) |
+  const int ones = depth % 10;
+  const int tens = (depth - ones) / 10;
+  int mdepth = 1, mversion = 0; // default value
+  if (tens == 0) {
+     mdepth = ones;
+     mversion = 0;
+  }else if(tens == 1){
+     mdepth = 0;
+     mversion = 1;
+  }else{
+     assert(tens <= 1);
+  }
+  id_|=((mdepth&0x7)<<14) |
     ((ieta>0)?(0x2000|(ieta<<7)):((-ieta)<<7)) |
     (iphi&0x7F);
+  id_|=((mversion&0x7)<<17);
 }
 
 HcalTrigTowerDetId::HcalTrigTowerDetId(int ieta, int iphi, int depth, int version) : DetId(Hcal,HcalTriggerTower) {
