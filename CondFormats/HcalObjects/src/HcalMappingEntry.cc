@@ -770,14 +770,21 @@ HTLogicalMapEntry::HTLogicalMapEntry(int in_et, int in_ph,
   // necessary since LMap code makes top = 0, bottom = 1, but det ids have top = 1, bottom = 0
   int top = 1;
   in_tb == 1 ? top = 0 : top = 1;
-  //create an hcal electronics id for the trigger tower, idea copied from CalibCalorimetry/HcalAlgos/src/HcalDBASCIIIO.cc
-  HcalElectronicsId hteid( in_ndat, in_slb, in_spig, in_fed - 700, in_cr, in_htr, top );
  
   mycrate_ = in_cr;
   myhtr_   = in_htr;
   (in_tb == 1) ? mytb_ = "b" : mytb_ = "t";
   myslb_   = in_slb;
   myslbch_ = in_ndat;
+
+  //create an hcal electronics id for the trigger tower, idea copied from CalibCalorimetry/HcalAlgos/src/HcalDBASCIIIO.cc
+  HcalElectronicsId hteid;
+  if( in_det_origin == "HF" ){
+     bool isTrig = (in_s_chDet == "HT" || in_s_chDet == "NT"); 
+     hteid = HcalElectronicsId(in_cr, in_htr, in_uhtr_trgf, in_uhtr_trgfc, isTrig);
+  }else{
+     hteid = HcalElectronicsId( in_ndat, in_slb, in_spig, in_fed - 700, in_cr, in_htr, top );
+  }
 
   mydcc_ = hteid.dccid();
   myspigot_ = in_spig;
