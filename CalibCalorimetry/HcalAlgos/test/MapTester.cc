@@ -137,11 +137,13 @@ void MapTester::beginRun(const edm::EventSetup& iSetup)
     sprintf(buf,"#file creation series : %s",tempbuff);
     outStream<<buf<< std::endl;
 
+/*
     HcalElectronicsMap myemap;
     edm::LogInfo("MapTester") <<"generating the emap..."<<std::endl;
     myemap = mymap.generateHcalElectronicsMap();
     edm::LogInfo("MapTester") <<"dumping the emap..."<<std::endl;
     HcalDbASCIIIO::dumpObject(outStream,myemap);
+*/
 
     //to output emap for uHTR, we do not use HcalElectronicsMap--dumpObject working chain; Instead, we get emap information directly from Lmap
     std::ofstream outStreamAll( "version_G_emap.txt" );

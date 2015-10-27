@@ -4126,6 +4126,7 @@ void HcalLogicalMapGenerator::ConstructTriggerTower(
     
     if(ori_t_chDet=="HF" && cntTPver==0) 
     {
+      //break;
       t_jPhi=4;//20 degree slices in HF
       if(t_iEta==30||t_iEta==31||t_iEta==33||
 	 t_iEta==34||t_iEta==36||t_iEta==37||
@@ -4141,6 +4142,24 @@ void HcalLogicalMapGenerator::ConstructTriggerTower(
 	 t_iPhi==63||t_iPhi==67||t_iPhi==71) break;
     }
 
+    //for temporary use of HF 1*1 Trigger tower, now the code is a little bit out of organize, but deadline close, so live in this way
+    if(ori_t_chDet=="HF" && cntTPver==1)
+    {
+      //in the 1*1 TP we still have special case for eta == 29 which go with eta == 30
+      if(t_det_origin=="HF" && t_iEta == 29 ) break;
+      //set fiber channel for trigger fiber, from 0 to 10, be careful about eta40 and eta41, both of them have channel == 10 
+      t_uhtr_trgfc = t_iEta - 30;
+      if( t_iEta == 40 || t_iEta == 41 ) t_uhtr_trgfc = 10;
+      //set fiber number for the trigger fiber, rely on iphi and ieta(only for eta40 and eta41)
+      //iphi == 3, 7, 11....71, set trigger fiber number == 0
+      if( t_iPhi%4 == 3 ) t_uhtr_trgf = 0;
+      //iphi ==1, 5, 9, 13 ...69, set trigger fiber number == 1
+      if( t_iPhi%4 == 1 ) t_uhtr_trgf = 1;
+      //special treatment for ieta == 41, because now both ieta 41 and itea 40 go with 3,7, phi, which really do not make sense to me
+      if( t_iPhi%4 == 3 && t_iEta == 41 ) t_uhtr_trgf = 1;
+    }
+
+    //be careful, here we have ieta both negative and positive
     if(t_side<0) t_iEta=-t_iEta;
     t_chDet="HT";
     
