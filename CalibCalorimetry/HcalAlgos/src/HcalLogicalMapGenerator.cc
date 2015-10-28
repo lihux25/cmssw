@@ -1821,7 +1821,7 @@ void HcalLogicalMapGenerator::buildHBEFTMap(const HcalTopology* topo,
               uhtr_ifed=( (ifed+400)/2 )*2;
               uhtr_fpga="uHTR";
               uhtr_dcc=0;
-              uhtr_ispigot=0;
+//              uhtr_ispigot=0;
 
               if(fpga=="top")
               {
@@ -1840,6 +1840,8 @@ void HcalLogicalMapGenerator::buildHBEFTMap(const HcalTopology* topo,
               {
                 iuhtr=ihtr-6;
               }
+
+              uhtr_ispigot = iuhtr;
 
               int uhtr_trgf, uhtr_trgfc;
 
@@ -2189,7 +2191,7 @@ void HcalLogicalMapGenerator::buildHBEFTMap(const HcalTopology* topo,
               uhtr_ifed=( (ifed+400)/2 )*2;
               uhtr_fpga="uHTR";
               uhtr_dcc=0;
-              uhtr_ispigot=0;
+//              uhtr_ispigot=0;
 
               if(fpga=="top")
               {
@@ -2208,6 +2210,8 @@ void HcalLogicalMapGenerator::buildHBEFTMap(const HcalTopology* topo,
               {
                 iuhtr=ihtr-6;
               }
+
+              uhtr_ispigot = iuhtr;
 
               int uhtr_trgf, uhtr_trgfc;
     
@@ -3788,7 +3792,7 @@ void HcalLogicalMapGenerator::buildCALIBMap(const HcalTopology* topo,
         uhtr_ifed=( (ifed+400)/2 )*2;
         uhtr_fpga="uHTR";
         uhtr_dcc=0;
-        uhtr_ispigot=0;
+//        uhtr_ispigot=0;
 
         if(fpga=="top")
         {
@@ -3798,6 +3802,8 @@ void HcalLogicalMapGenerator::buildCALIBMap(const HcalTopology* topo,
         {
           uhtr_fi=ihtr_fi+1;
         }
+
+        uhtr_ispigot = iuhtr;
 
         int uhtr_trgf, uhtr_trgfc;
 
