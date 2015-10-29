@@ -4146,6 +4146,8 @@ void HcalLogicalMapGenerator::ConstructTriggerTower(
 	 t_iPhi==23||t_iPhi==27||t_iPhi==31||t_iPhi==35||t_iPhi==39||
 	 t_iPhi==43||t_iPhi==47||t_iPhi==51||t_iPhi==55||t_iPhi==59||
 	 t_iPhi==63||t_iPhi==67||t_iPhi==71) break;
+      t_uhtr_trgf    = uhtr_trgf;
+      t_uhtr_trgfc   = uhtr_trgfc;
     }
 
     //for temporary use of HF 1*1 Trigger tower, now the code is a little bit out of organize, but deadline close, so live in this way
