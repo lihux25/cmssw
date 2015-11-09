@@ -564,6 +564,25 @@ void HcalLogicalMap::printEmapCALIBHBHEVME(std::ostream& hcalemap)
   return ;
 }
 
+void HcalLogicalMap::printEmapCALIBHBHEuTCA(std::ostream& hcalemap)
+{
+  char buf [1024];
+
+  for ( std::vector<CALIBLogicalMapEntry>::iterator it = CALIBEntries_.begin(); it!=CALIBEntries_.end(); ++it )
+  {
+    if( it->mycalibsubdet_ == "CALIB_HB" || it->mycalibsubdet_ == "CALIB_HE" )
+    {
+      sprintf (buf, " %7X %3d %3d %3s %4d %7d %10d %14d %7s %5d %5d %6d",
+               it->hcalCalibDetID_,
+               it->myuhtr_crate_, it->myuhtr_, "u", it->myuhtr_dcc_, it->myuhtr_spigot_, it->myuhtr_htr_fi_, it->myfi_ch_,
+               (it->mycalibsubdet_).c_str(), (it->myet_), it->myph_, it->mychty_
+              );
+      hcalemap << buf << std::endl;
+    }
+  }
+  return ;
+}
+
 void HcalLogicalMap::printEmapCALIBHFVME(std::ostream& hcalemap)
 {
   char buf [1024];
@@ -643,7 +662,8 @@ void HcalLogicalMap::printEmapZDC(std::ostream& hcalemap)
 
 void HcalLogicalMap::printAllEMap(
                                   std::ostream& fOutputAll,
-                                  std::ostream& fOutputuTCA
+                                  std::ostream& fOutputHBHEuTCA,
+                                  std::ostream& fOutputHBHEVME
                                  )
 {
   char tempbuff[30];
@@ -659,42 +679,51 @@ void HcalLogicalMap::printAllEMap(
   date = mystream.str();
 
   fOutputAll << "## file created " << date.c_str() << " #\n" << "#       i  cr  sl  tb  dcc  spigot  fiber/slb  fibcha/slbcha  subdet  ieta  iphi  depth" << std::endl;
-  fOutputuTCA << "## file created " << date.c_str() << " #\n" << "#       i  cr  sl  tb  dcc  spigot  fiber/slb  fibcha/slbcha  subdet  ieta  iphi  depth" << std::endl;
-  
+  fOutputHBHEuTCA << "## file created " << date.c_str() << " #\n" << "#       i  cr  sl  tb  dcc  spigot  fiber/slb  fibcha/slbcha  subdet  ieta  iphi  depth" << std::endl;
+  fOutputHBHEVME << "## file created " << date.c_str() << " #\n" << "#       i  cr  sl  tb  dcc  spigot  fiber/slb  fibcha/slbcha  subdet  ieta  iphi  depth" << std::endl;
+
   printEmapHBHEVME(fOutputAll);
   printEmapHBHEuTCA(fOutputAll);
-  printEmapHFVME(fOutputAll);
   printEmapHFuTCA(fOutputAll);
   printEmapHOHXVME(fOutputAll);
 
   printEmapHTHBHEVME(fOutputAll);
   printEmapHTHBHEuTCA(fOutputAll);
-  printEmapHTHFVME(fOutputAll);
   printEmapHTHFuTCA(fOutputAll);
   printEmapHTHOVME(fOutputAll);
 
   printEmapCALIBHBHEVME(fOutputAll);
-  //printEmapCALIBHBHEuTCA(fOutputAll);
+  printEmapCALIBHBHEuTCA(fOutputAll);
   printEmapCALIBHFVME(fOutputAll);
   printEmapCALIBHFuTCA(fOutputAll);
   printEmapCALIBHOVME(fOutputAll);
 
-  //printEmapZDC(fOutputAll);
+  // start to fill HBHEuTCA entries
+  printEmapHBHEuTCA(fOutputHBHEuTCA);
+  printEmapHFuTCA(fOutputHBHEuTCA);
+  printEmapHOHXVME(fOutputHBHEuTCA);
 
-  printEmapHBHEVME(fOutputuTCA);
-  printEmapHFuTCA(fOutputuTCA);
-  printEmapHOHXVME(fOutputuTCA);
+  printEmapHTHBHEuTCA(fOutputHBHEuTCA);
+  printEmapHTHFuTCA(fOutputHBHEuTCA);
+  printEmapHTHOVME(fOutputHBHEuTCA);
 
-  printEmapHTHBHEVME(fOutputuTCA);
-  printEmapHTHFuTCA(fOutputuTCA);
-  printEmapHTHOVME(fOutputuTCA);
+  printEmapCALIBHBHEVME(fOutputHBHEuTCA);
+  printEmapCALIBHFVME(fOutputHBHEuTCA);
+  printEmapCALIBHOVME(fOutputHBHEuTCA);
 
-  printEmapCALIBHBHEVME(fOutputuTCA);
-  printEmapCALIBHFuTCA(fOutputuTCA);
-  printEmapCALIBHOVME(fOutputuTCA);
+  //start to fill HBHE VME entries
+  printEmapHBHEVME(fOutputHBHEVME);
+  printEmapHFuTCA(fOutputHBHEVME);
+  printEmapHOHXVME(fOutputHBHEVME);
 
-  //printEmapZDC(fOutputuTCA);
+  printEmapHTHBHEVME(fOutputHBHEVME);
+  printEmapHTHFuTCA(fOutputHBHEVME);
+  printEmapHTHOVME(fOutputHBHEVME);
 
+  printEmapCALIBHBHEVME(fOutputHBHEVME);
+  printEmapCALIBHFVME(fOutputHBHEVME);
+  printEmapCALIBHOVME(fOutputHBHEVME);
+  //one thing need to comment is we still use VME calibration channels for HBHEHF(20151105), we will fix that once we get fw and sw done for the online operation
   return ;
 }
 
@@ -845,8 +874,6 @@ void HcalLogicalMap::printXMap(FILE* xmapfile)
   }
   return ;
 }
-
-
 
 const DetId HcalLogicalMap::getDetId(const HcalElectronicsId& eid)
 {

@@ -1065,7 +1065,7 @@ void HcalLogicalMapGenerator::averageQIEFNAL(const std::vector <HBHEHFQIEInfo>& 
       }
     }
   }
-
+  /*
   std::cout << "The average offsets and slopes base on subdetector and QIE channel: " << std::endl;
 
   for(i=0;i<6;i++)
@@ -1210,7 +1210,7 @@ void HcalLogicalMapGenerator::averageQIEFNAL(const std::vector <HBHEHFQIEInfo>& 
       }
     }
   } 
-
+  */
   return ;
 }
 
@@ -1821,7 +1821,7 @@ void HcalLogicalMapGenerator::buildHBEFTMap(const HcalTopology* topo,
               uhtr_ifed=( (ifed+400)/2 )*2;
               uhtr_fpga="uHTR";
               uhtr_dcc=0;
-//              uhtr_ispigot=0;
+              uhtr_ispigot=0;
 
               if(fpga=="top")
               {
@@ -1841,42 +1841,22 @@ void HcalLogicalMapGenerator::buildHBEFTMap(const HcalTopology* topo,
                 iuhtr=ihtr-6;
               }
 
-              uhtr_ispigot = iuhtr;
-
               int uhtr_trgf, uhtr_trgfc;
+              //for 2 slb channels we need to add one on channel if the ConstructTriggerTower function
+              uhtr_trgfc = ((ieta-1)%2)*4 + ((iphi+69)%72)%4;
 
-              uhtr_trgf = 12;
-              if( iuhtr%2 != 0 )
+              if(ieta <= 20)
               {
-                if(fpga=="top")
-                {
-                  if(slbin=="C0") uhtr_trgfc = 0;
-                  else if(slbin=="C1") uhtr_trgfc = 1;
-                  else uhtr_trgfc = -1;
-                }
-                else
-                {
-                  if(slbin=="D0") uhtr_trgfc = 2;
-                  else if(slbin=="D1") uhtr_trgfc = 3;
-                  else uhtr_trgfc = -1;
-                }
+                if     (ieta >= 1  && ieta <=12) uhtr_trgf = (int)((ieta-1)/2);
+                else if(ieta >= 13 && ieta <=18) uhtr_trgf = (int)((ieta-13)/2);
+                else uhtr_trgf = 0;
               }
               else
               {
-                if(fpga=="top")
-                {
-                  if(slbin=="A0") uhtr_trgfc = 0;
-                  else if(slbin=="A1") uhtr_trgfc = 1;
-                  else uhtr_trgfc = -1;
-                }
-                else
-                {
-                  if(slbin=="B0") uhtr_trgfc = 2;
-                  else if(slbin=="B1") uhtr_trgfc = 3;
-                  else uhtr_trgfc = -1;
-                }
+                if     (ieta >= 21 && ieta <=24) uhtr_trgf = (int)((ieta-21)/2);
+                else if(ieta >= 25 && ieta <=26) uhtr_trgf = 3;
+                else uhtr_trgf = 3;
               }
-
 
               HBHEHFLogicalMapEntry hbeflmapentry( 
 						  ifi_ch, ihtr_fi, ispigot, ifed, icrate, ihtr, fpga,
@@ -2191,7 +2171,7 @@ void HcalLogicalMapGenerator::buildHBEFTMap(const HcalTopology* topo,
               uhtr_ifed=( (ifed+400)/2 )*2;
               uhtr_fpga="uHTR";
               uhtr_dcc=0;
-//              uhtr_ispigot=0;
+              uhtr_ispigot=0;
 
               if(fpga=="top")
               {
@@ -2210,8 +2190,6 @@ void HcalLogicalMapGenerator::buildHBEFTMap(const HcalTopology* topo,
               {
                 iuhtr=ihtr-6;
               }
-
-              uhtr_ispigot = iuhtr;
 
               int uhtr_trgf, uhtr_trgfc;
     
@@ -3792,7 +3770,7 @@ void HcalLogicalMapGenerator::buildCALIBMap(const HcalTopology* topo,
         uhtr_ifed=( (ifed+400)/2 )*2;
         uhtr_fpga="uHTR";
         uhtr_dcc=0;
-//        uhtr_ispigot=0;
+        uhtr_ispigot=0;
 
         if(fpga=="top")
         {
@@ -3802,8 +3780,6 @@ void HcalLogicalMapGenerator::buildCALIBMap(const HcalTopology* topo,
         {
           uhtr_fi=ihtr_fi+1;
         }
-
-        uhtr_ispigot = iuhtr;
 
         int uhtr_trgf, uhtr_trgfc;
 
@@ -4118,8 +4094,10 @@ void HcalLogicalMapGenerator::ConstructTriggerTower(
     -- cntTPver;
 // Restore the t_iDep and t_iEta values as they are modified/re-used during creating of the HTLogicalMapEntry.
 // For the second loop for HF, this is needed to get correct Emap.
-    t_iDep = idepth;
-    if( t_iEta<0 ) t_iEta=-t_iEta;
+    t_iEta   = ieta;
+    t_iPhi   = iphi;
+    t_jPhi   = idphi;
+    t_iDep   = idepth;
 
 // Since it's checked here and only t_iDep ==1 is allowed, I will simply do t_iDep -1.
 // The reasoning is that the default ctor of HcalTrigTowerDetId(int ieta, int iphi), which have been used in many places,
@@ -4127,7 +4105,7 @@ void HcalLogicalMapGenerator::ConstructTriggerTower(
 // from Emap so to be 0 in this case.
 // Once this t_iDep != 1 is relaxed for whatever reason, please check no NEGATIVE of t_iDep due to t_iDep -1!
     if(t_iDep!=1) break;
-    if(ori_t_chDet=="HE"&&t_iEta==29) break;
+    if(ori_t_chDet=="HE" && t_iEta==29) break;
     t_iDep += cntTPver*10 -1;
     
     if(ori_t_chDet=="HF" && cntTPver==0) 
@@ -4192,12 +4170,14 @@ void HcalLogicalMapGenerator::ConstructTriggerTower(
     }
     if(t_slbin2!="NA") 
     {
-      if(t_slbin2=="A0"||t_slbin2=="B0")  t_nDat=0;
+      if     (t_slbin2=="A0"||t_slbin2=="B0")  t_nDat=0;
       else if(t_slbin2=="A1"||t_slbin2=="B1")  t_nDat=1;
       else if(t_slbin2=="C0"||t_slbin2=="D0")  t_nDat=2;
       else if(t_slbin2=="C1"||t_slbin2=="D1")  t_nDat=3;
       t_jPhi=1;//after splitting up these towers, each half should have dphi of 1
       t_iPhi+=1;
+
+      t_uhtr_trgfc++;
 
       HTLogicalMapEntry htlmapentry(
 				    t_iEta, t_iPhi,//changed from t_iPhi + 1 here to the spot above

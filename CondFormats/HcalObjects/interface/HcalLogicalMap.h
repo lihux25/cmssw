@@ -55,7 +55,8 @@ class HcalLogicalMap
 
     void printAllEMap(
                       std::ostream& fOutputAll,
-                      std::ostream& fOutputuTCA
+                      std::ostream& fOutputHBHEuTCA,
+                      std::ostream& fOutputHBHEVME
                      );
 
     const DetId getDetId(const HcalElectronicsId&);
@@ -89,9 +90,11 @@ class HcalLogicalMap
     void printEmapHTHOVME(std::ostream& hcalemap);
  
     void printEmapCALIBHBHEVME(std::ostream& hcalemap);
+    void printEmapCALIBHBHEuTCA(std::ostream& hcalemap);
     void printEmapCALIBHFVME(std::ostream& hcalemap);
     void printEmapCALIBHFuTCA(std::ostream& hcalemap);
     void printEmapCALIBHOVME(std::ostream& hcalemap);
+    
     void printEmapZDC(std::ostream& hcalemap);
 
     ////new for xml generation

@@ -132,26 +132,26 @@ void MapTester::beginRun(const edm::EventSetup& iSetup)
     else if (mapIOV_==6) file<<"version_F_emap.txt";
     else                 file<<"version_G_emap.txt";
 
-    std::ofstream outStream( "version_G_VME_only_emap.txt" );
-    char buf [1024];
-    sprintf(buf,"#file creation series : %s",tempbuff);
-    outStream<<buf<< std::endl;
+    //std::ofstream outStream( "version_G_VME_only_emap.txt" );
+    //char buf [1024];
+    //sprintf(buf,"#file creation series : %s",tempbuff);
+    //outStream<<buf<< std::endl;
 
-/*
     HcalElectronicsMap myemap;
-    edm::LogInfo("MapTester") <<"generating the emap..."<<std::endl;
-    myemap = mymap.generateHcalElectronicsMap();
-    edm::LogInfo("MapTester") <<"dumping the emap..."<<std::endl;
-    HcalDbASCIIIO::dumpObject(outStream,myemap);
-*/
+    //edm::LogInfo("MapTester") <<"generating the emap..."<<std::endl;
+    //myemap = mymap.generateHcalElectronicsMap();
+    //edm::LogInfo("MapTester") <<"dumping the emap..."<<std::endl;
+    //HcalDbASCIIIO::dumpObject(outStream,myemap);
 
     //to output emap for uHTR, we do not use HcalElectronicsMap--dumpObject working chain; Instead, we get emap information directly from Lmap
-    std::ofstream outStreamAll( "version_G_emap.txt" );
-    std::ofstream outStreamuTCA( "version_G_HF_uTCA_only_emap.txt" );
+    std::ofstream outStreamAll( "version_G_emap_all.txt" );
+    std::ofstream outStreamHBHEuTCA( "version_G_emap_HBHEuHTR.txt" );
+    std::ofstream outStreamHBHEVME( "version_G_emap_HBHEVME.txt" );
     mymap.printAllEMap(
                         outStreamAll,
-                        outStreamuTCA
-                       );
+                        outStreamHBHEuTCA,
+                        outStreamHBHEVME
+                      );
   }
 }
 
