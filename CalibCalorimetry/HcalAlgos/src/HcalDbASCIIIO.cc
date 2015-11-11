@@ -1407,7 +1407,8 @@ bool HcalDbASCIIIO::dumpObject (std::ostream& fOutput, const HcalElectronicsMap&
         }else if( eid.isUTCAid() ){
            sprintf (buf, " %7X %3d %3d   u %4d %7d %10d %14d %7s %5s %5s %6s",
                     converter.getId().rawId(),
-                    eid.crateId(), eid.slot(), 0, eid.spigot(), eid.fiberIndex(), eid.fiberChanId(), 
+//                    eid.crateId(), eid.slot(), 0, eid.spigot(), eid.fiberIndex(), eid.fiberChanId(), 
+                    eid.crateId(), eid.slot(), 0, 0, eid.fiberIndex(), eid.fiberChanId(), 
                     converter.getFlavor ().c_str (), converter.getField1 ().c_str (), converter.getField2 ().c_str (), converter.getField3 ().c_str ()
                    );
            fOutput << buf << std::endl;
@@ -1433,7 +1434,8 @@ bool HcalDbASCIIIO::dumpObject (std::ostream& fOutput, const HcalElectronicsMap&
 	  sprintf (buf, " %7X %3d %3d   u %4d %7d %10d %14d %7s %5s %5s %6s",
 		   //		 i,
 		   converter.getId().rawId(),
-		   eid.crateId(), eid.slot(), 0, eid.slot(), eid.fiberIndex(), eid.fiberChanId(),
+//		   eid.crateId(), eid.slot(), 0, eid.slot(), eid.fiberIndex(), eid.fiberChanId(),
+		   eid.crateId(), eid.slot(), 0, 0, eid.fiberIndex(), eid.fiberChanId(),
 		   converter.getFlavor ().c_str (), converter.getField1 ().c_str (), converter.getField2 ().c_str (), converter.getField3 ().c_str ()
 		   );
 	}
