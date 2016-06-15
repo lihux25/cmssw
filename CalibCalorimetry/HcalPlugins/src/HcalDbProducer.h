@@ -62,8 +62,6 @@ class HcalDbProducer : public edm::ESProducer {
   void lutMetadataCallback (const HcalLutMetadataRcd& fRecord);
 
   void whatBFieldCallback(const RunInfoRcd& fRecord);
-//  void whatBFieldCallback(const MuonGeometryRecord& fRecord);
-//  void whatBFieldCallback(const HcalRespCorrsRcd& fRecord);
 
    private:
       // ----------member data ---------------------------
@@ -87,6 +85,6 @@ class HcalDbProducer : public edm::ESProducer {
 
   const double MagFieldCurrentTh;
   bool is0T;
-  edm::ESHandle<RunInfo> runInfo;
+  const std::string label_0T;
 
 };

@@ -37,7 +37,8 @@ HcalDbProducer::HcalDbProducer( const edm::ParameterSet& fConfig)
     mDumpRequest (),
     mDumpStream(0),
     MagFieldCurrentTh(fConfig.getUntrackedParameter<double> ("MagFieldCurrentTh", 2000.)),
-    is0T(false)
+    is0T(false),
+    label_0T(fConfig.getUntrackedParameter<std::string>("label_0T", "0T"))
 {
   //the following line is needed to tell the framework what data is being produced
   // comments of dependsOn:
@@ -47,8 +48,6 @@ HcalDbProducer::HcalDbProducer( const edm::ParameterSet& fConfig)
   //    gives the same result as
   //      dependsOn(&FooProd::func1) & (&FooProd::func2) & (&FooProd::func3)
   // 2) Upon IOV change, all callbacks are called, in the inverse order of their specification below (tested).
-  //setWhatProduced (this, (dependsOn (&HcalDbProducer::pedestalsCallback, &HcalDbProducer::whatBField) &
-  //setWhatProduced (this, (dependsOn (&HcalDbProducer::whatBFieldCallback) &
   setWhatProduced (this, (dependsOn (&HcalDbProducer::pedestalsCallback) &
 			  &HcalDbProducer::pedestalWidthsCallback &
 			  &HcalDbProducer::respCorrsCallback &
@@ -99,18 +98,16 @@ std::shared_ptr<HcalDbService> HcalDbProducer::produce( const HcalDbRecord&)
   return mService;
 }
 
-//void HcalDbProducer::whatBFieldCallback(const RunInfoRcd& fRecord){
 void HcalDbProducer::whatBFieldCallback(const RunInfoRcd& fRecord){
 
-//   edm::ESHandle<RunInfo> runInfo;
-//   fRecord.get(runInfo);
+   edm::ESHandle<RunInfo> runInfo;
+   fRecord.get(runInfo);
 
-//   double average_current = runInfo.product()->m_avg_current;
-//   is0T = (average_current <= MagFieldCurrentTh);
-   is0T = false;
+   is0T = (runInfo.product()->m_avg_current <= MagFieldCurrentTh);
 }
 
 void HcalDbProducer::pedestalsCallback (const HcalPedestalsRcd& fRecord) {
+
   edm::ESTransientHandle <HcalPedestals> item;
   fRecord.get (item);
 
@@ -131,6 +128,7 @@ void HcalDbProducer::pedestalsCallback (const HcalPedestalsRcd& fRecord) {
 
 std::shared_ptr<HcalChannelQuality> HcalDbProducer::produceChannelQualityWithTopo(const HcalChannelQualityRcd& fRecord)
 {
+
   edm::ESHandle <HcalChannelQuality> item;
   fRecord.get (item);
 
@@ -145,6 +143,7 @@ std::shared_ptr<HcalChannelQuality> HcalDbProducer::produceChannelQualityWithTop
 }
 
 void HcalDbProducer::pedestalWidthsCallback (const HcalPedestalWidthsRcd& fRecord) {
+
   edm::ESTransientHandle <HcalPedestalWidths> item;
   fRecord.get (item);
 
@@ -164,8 +163,13 @@ void HcalDbProducer::pedestalWidthsCallback (const HcalPedestalWidthsRcd& fRecor
 
 
 void HcalDbProducer::gainsCallback (const HcalGainsRcd& fRecord) {
+
   edm::ESTransientHandle <HcalGains> item;
-  fRecord.get (item);
+  if( is0T ){
+     fRecord.get (label_0T, item);
+  }else{
+     fRecord.get (item);
+  }
 
   mGains.reset( new HcalGains(*item) );
   edm::ESHandle<HcalTopology> htopo;
@@ -183,6 +187,7 @@ void HcalDbProducer::gainsCallback (const HcalGainsRcd& fRecord) {
 
 
 void HcalDbProducer::gainWidthsCallback (const HcalGainWidthsRcd& fRecord) {
+
   edm::ESTransientHandle <HcalGainWidths> item;
   fRecord.get (item);
 
@@ -201,6 +206,7 @@ void HcalDbProducer::gainWidthsCallback (const HcalGainWidthsRcd& fRecord) {
 }
 
 void HcalDbProducer::QIEDataCallback (const HcalQIEDataRcd& fRecord) {
+
   edm::ESTransientHandle <HcalQIEData> item;
   fRecord.get (item);
 
@@ -220,6 +226,7 @@ void HcalDbProducer::QIEDataCallback (const HcalQIEDataRcd& fRecord) {
 }
 
 void HcalDbProducer::QIETypesCallback (const HcalQIETypesRcd& fRecord) {
+
   edm::ESTransientHandle <HcalQIETypes> item;
   fRecord.get (item);
 
@@ -238,6 +245,7 @@ void HcalDbProducer::QIETypesCallback (const HcalQIETypesRcd& fRecord) {
 }
 
 void HcalDbProducer::channelQualityCallback (const HcalChannelQualityRcd& fRecord) {
+
   edm::ESHandle <HcalChannelQuality> item;
   fRecord.get ("withTopo", item );
 
@@ -249,8 +257,13 @@ void HcalDbProducer::channelQualityCallback (const HcalChannelQualityRcd& fRecor
 }
 
 void HcalDbProducer::respCorrsCallback (const HcalRespCorrsRcd& fRecord) {
+
   edm::ESTransientHandle <HcalRespCorrs> item;
-  fRecord.get (item);
+  if( is0T ){
+     fRecord.get (label_0T, item);
+  }else{
+     fRecord.get (item);
+  }
 
   mRespCorrs.reset( new HcalRespCorrs(*item) );
 
@@ -267,6 +280,7 @@ void HcalDbProducer::respCorrsCallback (const HcalRespCorrsRcd& fRecord) {
 }
 
 void HcalDbProducer::LUTCorrsCallback (const HcalLUTCorrsRcd& fRecord) {
+
   edm::ESTransientHandle <HcalLUTCorrs> item;
   fRecord.get (item);
 
@@ -285,6 +299,7 @@ void HcalDbProducer::LUTCorrsCallback (const HcalLUTCorrsRcd& fRecord) {
 }
 
 void HcalDbProducer::PFCorrsCallback (const HcalPFCorrsRcd& fRecord) {
+
   edm::ESTransientHandle <HcalPFCorrs> item;
   fRecord.get (item);
 
@@ -303,6 +318,7 @@ void HcalDbProducer::PFCorrsCallback (const HcalPFCorrsRcd& fRecord) {
 }
 
 void HcalDbProducer::timeCorrsCallback (const HcalTimeCorrsRcd& fRecord) {
+
   edm::ESTransientHandle <HcalTimeCorrs> item;
   fRecord.get (item);
 
@@ -321,6 +337,7 @@ void HcalDbProducer::timeCorrsCallback (const HcalTimeCorrsRcd& fRecord) {
 }
 
 void HcalDbProducer::zsThresholdsCallback (const HcalZSThresholdsRcd& fRecord) {
+
   edm::ESTransientHandle <HcalZSThresholds> item;
   fRecord.get (item);
 
@@ -339,6 +356,7 @@ void HcalDbProducer::zsThresholdsCallback (const HcalZSThresholdsRcd& fRecord) {
 }
 
 void HcalDbProducer::L1triggerObjectsCallback (const HcalL1TriggerObjectsRcd& fRecord) {
+
   edm::ESTransientHandle <HcalL1TriggerObjects> item;
   fRecord.get (item);
 
@@ -357,6 +375,7 @@ void HcalDbProducer::L1triggerObjectsCallback (const HcalL1TriggerObjectsRcd& fR
 }
 
 void HcalDbProducer::electronicsMapCallback (const HcalElectronicsMapRcd& fRecord) {
+
   edm::ESHandle <HcalElectronicsMap> item;
   fRecord.get (item);
   mService->setData (item.product ());
@@ -367,6 +386,7 @@ void HcalDbProducer::electronicsMapCallback (const HcalElectronicsMapRcd& fRecor
 }
 
 void HcalDbProducer::frontEndMapCallback (const HcalFrontEndMapRcd& fRecord) {
+
   edm::ESHandle <HcalFrontEndMap> item;
   fRecord.get (item);
   mService->setData (item.product ());
@@ -377,6 +397,7 @@ void HcalDbProducer::frontEndMapCallback (const HcalFrontEndMapRcd& fRecord) {
 }
 
 void HcalDbProducer::lutMetadataCallback (const HcalLutMetadataRcd& fRecord) {
+
   edm::ESTransientHandle <HcalLutMetadata> item;
   fRecord.get (item);
 
