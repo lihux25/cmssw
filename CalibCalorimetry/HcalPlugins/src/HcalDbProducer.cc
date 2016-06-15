@@ -358,7 +358,11 @@ void HcalDbProducer::zsThresholdsCallback (const HcalZSThresholdsRcd& fRecord) {
 void HcalDbProducer::L1triggerObjectsCallback (const HcalL1TriggerObjectsRcd& fRecord) {
 
   edm::ESTransientHandle <HcalL1TriggerObjects> item;
-  fRecord.get (item);
+  if( is0T ){
+     fRecord.get (label_0T, item);
+  }else{
+     fRecord.get (item);
+  }
 
   mL1TriggerObjects.reset( new HcalL1TriggerObjects(*item) );
 
