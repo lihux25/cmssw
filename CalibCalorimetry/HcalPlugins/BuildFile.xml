@@ -11,4 +11,5 @@
 <use   name="FWCore/PluginManager"/>
 <use   name="FWCore/Utilities"/>
 <use   name="Geometry/CaloTopology"/>
+<use   name="CondFormats/RunInfo"/>
 <flags   EDM_PLUGIN="1"/>

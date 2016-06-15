@@ -30,6 +30,9 @@ class HcalDbRecord;
 #include "CondFormats/DataRecord/interface/HcalAllRcds.h"
 #include "CalibFormats/HcalObjects/interface/HcalDbService.h"
 
+#include "FWCore/Framework/interface/ESHandle.h"
+#include "CondFormats/RunInfo/interface/RunInfo.h"
+#include "CondFormats/DataRecord/interface/RunSummaryRcd.h"
 
 class HcalDbProducer : public edm::ESProducer {
  public:
@@ -58,6 +61,10 @@ class HcalDbProducer : public edm::ESProducer {
   void PFCorrsCallback (const HcalPFCorrsRcd& fRecord);
   void lutMetadataCallback (const HcalLutMetadataRcd& fRecord);
 
+  void whatBFieldCallback(const RunInfoRcd& fRecord);
+//  void whatBFieldCallback(const MuonGeometryRecord& fRecord);
+//  void whatBFieldCallback(const HcalRespCorrsRcd& fRecord);
+
    private:
       // ----------member data ---------------------------
   std::shared_ptr<HcalDbService> mService;
@@ -77,5 +84,9 @@ class HcalDbProducer : public edm::ESProducer {
   std::unique_ptr<HcalZSThresholds> mZSThresholds;
   std::unique_ptr<HcalL1TriggerObjects> mL1TriggerObjects;
   std::unique_ptr<HcalLutMetadata> mLutMetadata;
+
+  const double MagFieldCurrentTh;
+  bool is0T;
+  edm::ESHandle<RunInfo> runInfo;
 
 };

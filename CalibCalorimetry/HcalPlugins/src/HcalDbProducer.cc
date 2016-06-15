@@ -27,7 +27,6 @@
 #include "CalibCalorimetry/HcalAlgos/interface/HcalDbASCIIIO.h"
 #include "CalibFormats/HcalObjects/interface/HcalDbRecord.h"
 
-
 #include "CondFormats/HcalObjects/interface/AllObjects.h"
 
 #include "HcalDbProducer.h"
@@ -36,7 +35,9 @@ HcalDbProducer::HcalDbProducer( const edm::ParameterSet& fConfig)
   : ESProducer(),
     mService (new HcalDbService (fConfig)),
     mDumpRequest (),
-    mDumpStream(0)
+    mDumpStream(0),
+    MagFieldCurrentTh(fConfig.getUntrackedParameter<double> ("MagFieldCurrentTh", 2000.)),
+    is0T(false)
 {
   //the following line is needed to tell the framework what data is being produced
   // comments of dependsOn:
@@ -46,6 +47,8 @@ HcalDbProducer::HcalDbProducer( const edm::ParameterSet& fConfig)
   //    gives the same result as
   //      dependsOn(&FooProd::func1) & (&FooProd::func2) & (&FooProd::func3)
   // 2) Upon IOV change, all callbacks are called, in the inverse order of their specification below (tested).
+  //setWhatProduced (this, (dependsOn (&HcalDbProducer::pedestalsCallback, &HcalDbProducer::whatBField) &
+  //setWhatProduced (this, (dependsOn (&HcalDbProducer::whatBFieldCallback) &
   setWhatProduced (this, (dependsOn (&HcalDbProducer::pedestalsCallback) &
 			  &HcalDbProducer::pedestalWidthsCallback &
 			  &HcalDbProducer::respCorrsCallback &
@@ -61,7 +64,8 @@ HcalDbProducer::HcalDbProducer( const edm::ParameterSet& fConfig)
 			  &HcalDbProducer::L1triggerObjectsCallback &
 			  &HcalDbProducer::electronicsMapCallback &
 //			  &HcalDbProducer::frontEndMapCallback &
-			  &HcalDbProducer::lutMetadataCallback 
+			  &HcalDbProducer::lutMetadataCallback &
+                          &HcalDbProducer::whatBFieldCallback
 			  )
 		   );
 
@@ -93,6 +97,17 @@ HcalDbProducer::~HcalDbProducer()
 std::shared_ptr<HcalDbService> HcalDbProducer::produce( const HcalDbRecord&)
 {
   return mService;
+}
+
+//void HcalDbProducer::whatBFieldCallback(const RunInfoRcd& fRecord){
+void HcalDbProducer::whatBFieldCallback(const RunInfoRcd& fRecord){
+
+//   edm::ESHandle<RunInfo> runInfo;
+//   fRecord.get(runInfo);
+
+//   double average_current = runInfo.product()->m_avg_current;
+//   is0T = (average_current <= MagFieldCurrentTh);
+   is0T = false;
 }
 
 void HcalDbProducer::pedestalsCallback (const HcalPedestalsRcd& fRecord) {
