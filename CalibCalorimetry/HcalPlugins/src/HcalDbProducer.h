@@ -30,6 +30,9 @@ class HcalDbRecord;
 #include "CondFormats/DataRecord/interface/HcalAllRcds.h"
 #include "CalibFormats/HcalObjects/interface/HcalDbService.h"
 
+#include "FWCore/Framework/interface/ESHandle.h"
+#include "CondFormats/RunInfo/interface/RunInfo.h"
+#include "CondFormats/DataRecord/interface/RunSummaryRcd.h"
 
 class HcalDbProducer : public edm::ESProducer {
  public:
@@ -62,7 +65,10 @@ class HcalDbProducer : public edm::ESProducer {
   void TPChannelParametersCallback (const HcalTPChannelParametersRcd& fRecord);
   void TPParametersCallback (const HcalTPParametersRcd& fRecord);
 
+  void whatBFieldCallback(const RunInfoRcd& fRecord);
+
 private:
+
       // ----------member data ---------------------------
   std::shared_ptr<HcalDbService> mService;
   std::vector<std::string> mDumpRequest;
@@ -85,5 +91,9 @@ private:
   std::unique_ptr<HcalSiPMCharacteristics> mSiPMCharacteristics;
   std::unique_ptr<HcalTPChannelParameters> mTPChannelParameters;
   std::unique_ptr<HcalTPParameters> mTPParameters;
+
+  const double MagFieldCurrentTh;
+  bool is0T;
+  const std::string label_0T;
 
 };
